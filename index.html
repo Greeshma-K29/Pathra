@@ -1,0 +1,2265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Pathra — Safety &amp; Routing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" crossorigin="" onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css'"/>
+<style>
+:root{
+  --bg:#080B10;
+  --bg-elev:#10151D;
+  --bg-elev-2:#161C26;
+  --stroke:#232B37;
+  --stroke-soft:#1A2029;
+  --text:#EAF0F5;
+  --text-dim:#8FA0AF;
+  --text-faint:#5C6C7A;
+  --mint:#38E1A8;
+  --mint-dim:#1F5E4C;
+  --amber:#F5B942;
+  --coral:#FF5F6D;
+  --blue:#5FC7EE;
+  --radius-l:20px;
+  --radius-m:14px;
+  --radius-s:10px;
+  --font-head:'Space Grotesk',sans-serif;
+  --font-body:'Inter',sans-serif;
+  --font-mono:'IBM Plex Mono',monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--font-body);height:100%;overflow-x:hidden;}
+body{-webkit-font-smoothing:antialiased;}
+h1,h2,h3,h4{font-family:var(--font-head);margin:0;letter-spacing:-0.01em;}
+p{margin:0;}
+button{font-family:var(--font-body);cursor:pointer;border:none;background:none;color:inherit;}
+input,select,textarea{font-family:var(--font-body);background:var(--bg-elev-2);border:1px solid var(--stroke);color:var(--text);border-radius:var(--radius-s);padding:12px 14px;font-size:15px;width:100%;outline:none;transition:border-color .15s;}
+input:focus,select:focus,textarea:focus{border-color:var(--mint);}
+input::placeholder{color:var(--text-faint);}
+a{color:var(--blue);}
+.mono{font-family:var(--font-mono);}
+.hidden{display:none !important;}
+.app-root{width:100%;max-width:100%;margin:0 auto;min-height:100vh;min-height:100dvh;position:relative;background:var(--bg);}
+.view-content{max-width:560px;margin:0 auto;width:100%;}
+.topbar,.bottomnav-wrap{max-width:100%;}
+
+/* ---- generic ---- */
+.screen{min-height:100vh;display:flex;flex-direction:column;}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 20px;border-radius:var(--radius-m);font-size:15px;font-weight:600;transition:transform .1s,opacity .15s;}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:var(--mint);color:#04211A;}
+.btn-primary:hover{opacity:.92;}
+.btn-outline{background:transparent;border:1px solid var(--stroke);color:var(--text);}
+.btn-ghost{background:var(--bg-elev-2);color:var(--text);}
+.btn-danger{background:var(--coral);color:#2A0508;}
+.btn-block{width:100%;}
+.btn-sm{padding:9px 14px;font-size:13px;border-radius:var(--radius-s);}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12.5px;color:var(--text-dim);margin-bottom:6px;font-weight:500;}
+.card{background:var(--bg-elev);border:1px solid var(--stroke-soft);border-radius:var(--radius-l);padding:18px;}
+.row{display:flex;align-items:center;}
+.row-between{display:flex;align-items:center;justify-content:space-between;}
+.gap8{gap:8px;}.gap12{gap:12px;}.gap16{gap:16px;}
+.muted{color:var(--text-dim);}
+.faint{color:var(--text-faint);}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 9px;border-radius:20px;background:var(--bg-elev-2);color:var(--text-dim);border:1px solid var(--stroke);}
+.pill-live{color:var(--mint);border-color:var(--mint-dim);}
+.pill-est{color:var(--amber);border-color:#4A3B1A;}
+.divider{height:1px;background:var(--stroke-soft);margin:16px 0;}
+.toast-wrap{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;width:calc(100% - 32px);max-width:448px;}
+.toast{background:var(--bg-elev-2);border:1px solid var(--stroke);border-radius:var(--radius-m);padding:12px 16px;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.4);animation:toastIn .25s ease;}
+@keyframes toastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.switch{position:relative;width:44px;height:26px;background:var(--bg-elev-2);border:1px solid var(--stroke);border-radius:20px;flex-shrink:0;transition:background .15s;}
+.switch::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--text-faint);transition:transform .15s,background .15s;}
+.switch.on{background:var(--mint-dim);border-color:var(--mint);}
+.switch.on::after{transform:translateX(18px);background:var(--mint);}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--stroke-soft);}
+.toggle-row:last-child{border-bottom:none;}
+.toggle-row .label{font-size:14.5px;}
+.toggle-row .sub{font-size:12px;color:var(--text-faint);margin-top:2px;}
+::-webkit-scrollbar{width:0;height:0;}
+
+/* ---- splash ---- */
+#view-splash{align-items:center;justify-content:center;text-align:center;background:radial-gradient(circle at 50% 30%,#0E1620 0%,#080B10 70%);padding:32px;}
+.splash-logo{width:88px;height:88px;border-radius:24px;background:linear-gradient(155deg,var(--mint),#1FA37C);display:flex;align-items:center;justify-content:center;margin-bottom:22px;box-shadow:0 12px 40px rgba(56,225,168,.25);}
+.splash-tag{color:var(--text-dim);font-size:14.5px;margin-top:10px;max-width:260px;}
+
+/* ---- auth ---- */
+.auth-wrap{padding:28px 22px 40px;flex:1;display:flex;flex-direction:column;max-width:440px;margin:0 auto;width:100%;}
+.auth-header{margin-bottom:26px;}
+.auth-header .kicker{color:var(--mint);font-size:13px;font-weight:600;margin-bottom:6px;}
+.auth-header h1{font-size:26px;}
+.pw-wrap{position:relative;}
+.pw-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text-dim);font-weight:600;}
+.checkbox-row{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--text-dim);}
+.checkbox-row input{width:16px;height:16px;padding:0;accent-color:var(--mint);}
+.auth-foot{margin-top:auto;padding-top:24px;text-align:center;font-size:13.5px;color:var(--text-dim);}
+.stepper{display:flex;gap:6px;margin-bottom:22px;}
+.step-dot{flex:1;height:4px;border-radius:3px;background:var(--stroke);}
+.step-dot.active{background:var(--mint);}
+.step-dot.done{background:var(--mint-dim);}
+
+/* ---- app shell ---- */
+#app-shell{display:none;flex-direction:column;min-height:100vh;}
+#app-shell.active{display:flex;}
+.topbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:center;padding:0 18px;background:rgba(8,11,16,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--stroke-soft);}
+.topbar-inner{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:560px;padding:14px 0;}
+.topbar-left{display:flex;align-items:center;gap:8px;}
+.back-btn{width:auto !important;padding:0 12px;gap:6px;font-size:13px;font-weight:600;color:var(--mint);}
+.loc-chip{display:flex;align-items:center;gap:8px;padding:9px 12px;margin-bottom:12px;background:var(--bg-elev);border:1px solid var(--stroke);border-radius:var(--radius-m);font-size:12.5px;}
+.loc-chip .lc-dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--mint);box-shadow:0 0 0 4px #38E1A833;}
+.loc-chip.warn{border-color:#4A3B1A;}
+.loc-chip.warn .lc-dot{background:var(--amber);box-shadow:0 0 0 4px #F5B94233;}
+.loc-chip .lc-txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.loc-chip .lc-txt small{display:block;color:var(--text-dim);font-size:11px;}
+.loc-chip .btn{flex:none;padding:7px 10px;font-size:12px;}
+.icon-btn{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:11px;background:var(--bg-elev-2);position:relative;}
+.badge-dot{position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--coral);border:2px solid var(--bg);}
+.topbar-title{font-family:var(--font-head);font-size:16px;font-weight:600;}
+.view-content{flex:1;padding:18px 18px 100px;}
+.view{display:none;}
+.view.active{display:block;animation:fadeUp .2s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* bottom nav */
+.bottomnav{position:fixed;bottom:0;left:0;right:0;max-width:560px;margin:0 auto;background:rgba(10,14,20,.92);backdrop-filter:blur(14px);border-top:1px solid var(--stroke-soft);display:flex;z-index:50;padding-bottom:env(safe-area-inset-bottom);}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:11px 0 9px;color:var(--text-faint);font-size:10.5px;font-weight:600;}
+.nav-item.active{color:var(--mint);}
+.nav-item svg{width:21px;height:21px;}
+
+/* drawer */
+.drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:80;opacity:0;pointer-events:none;transition:opacity .2s;}
+.drawer-overlay.open{opacity:1;pointer-events:all;}
+.drawer{position:fixed;top:0;left:-300px;width:280px;height:100%;background:var(--bg-elev);z-index:90;transition:left .22s ease;padding:22px 18px;border-right:1px solid var(--stroke-soft);}
+.drawer.open{left:0;}
+.drawer-item{display:flex;align-items:center;gap:12px;padding:13px 10px;border-radius:var(--radius-s);font-size:15px;font-weight:500;margin-bottom:4px;}
+.drawer-item:hover{background:var(--bg-elev-2);}
+.drawer-item.danger{color:var(--coral);}
+
+/* dashboard */
+.greet{margin-bottom:18px;}
+.greet .name{font-size:22px;}
+.greet .meta{font-size:12.5px;color:var(--text-faint);margin-top:3px;}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0;}
+.stat-card{background:var(--bg-elev);border:1px solid var(--stroke-soft);border-radius:var(--radius-m);padding:14px;}
+.stat-card .val{font-family:var(--font-mono);font-size:22px;font-weight:600;margin-top:4px;}
+.stat-card .lbl{font-size:11.5px;color:var(--text-faint);}
+.ring-wrap{position:relative;width:64px;height:64px;flex-shrink:0;}
+.ring-wrap svg{transform:rotate(-90deg);}
+.ring-val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:600;font-size:16px;}
+.feature-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px;}
+.feature-card{background:var(--bg-elev);border:1px solid var(--stroke-soft);border-radius:var(--radius-l);padding:16px;min-height:118px;display:flex;flex-direction:column;justify-content:space-between;transition:border-color .15s,transform .1s;}
+.feature-card:active{transform:scale(.97);}
+.feature-card:hover{border-color:var(--mint-dim);}
+.feature-card .ic{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:8px;}
+.feature-card h4{font-size:14.5px;}
+.feature-card p{font-size:11.5px;color:var(--text-faint);margin-top:3px;line-height:1.35;}
+.section-title{font-size:13px;font-weight:700;color:var(--text-dim);text-transform:none;margin:22px 0 10px;display:flex;justify-content:space-between;align-items:center;}
+.list-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--stroke-soft);}
+.list-row:last-child{border-bottom:none;}
+.list-ic{width:36px;height:36px;border-radius:10px;background:var(--bg-elev-2);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.list-row .t{font-size:14px;font-weight:500;}
+.list-row .s{font-size:11.5px;color:var(--text-faint);}
+.list-row .d{margin-left:auto;font-size:12px;color:var(--text-faint);font-family:var(--font-mono);}
+
+/* sos floating */
+.sos-fab{position:fixed;right:max(16px, calc(50% - 280px + 16px));bottom:88px;width:58px;height:58px;border-radius:50%;background:var(--coral);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 26px rgba(255,95,109,.4);z-index:60;font-family:var(--font-head);font-weight:700;font-size:12px;color:#2A0508;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,95,109,.5)}70%{box-shadow:0 0 0 14px rgba(255,95,109,0)}100%{box-shadow:0 0 0 0 rgba(255,95,109,0)}}
+.sos-fab{animation:pulse 2.4s infinite;}
+
+/* modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .2s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal-overlay.center{align-items:center;justify-content:center;}
+.sheet{background:var(--bg-elev);width:100%;max-width:560px;margin:0 auto;border-radius:22px 22px 0 0;padding:22px 20px 32px;transform:translateY(20px);transition:transform .22s ease;max-height:85vh;overflow-y:auto;}
+.modal-overlay.open .sheet{transform:translateY(0);}
+.sheet-handle{width:36px;height:4px;background:var(--stroke);border-radius:4px;margin:0 auto 16px;}
+.center .sheet{border-radius:22px;}
+
+/* map */
+.map-box{width:100%;height:220px;border-radius:var(--radius-m);overflow:hidden;border:1px solid var(--stroke-soft);}
+.leaflet-container{background:#0F1620;}
+
+/* safe route */
+.loc-inputs{position:relative;}
+.autocomplete{position:absolute;left:0;right:0;top:100%;background:var(--bg-elev-2);border:1px solid var(--stroke);border-radius:var(--radius-s);margin-top:4px;z-index:30;max-height:220px;overflow-y:auto;}
+.ac-item{padding:11px 13px;font-size:13.5px;border-bottom:1px solid var(--stroke-soft);}
+.ac-item:last-child{border-bottom:none;}
+.ac-item:hover{background:var(--bg-elev);}
+.factor-row{margin-bottom:12px;}
+.factor-row .fh{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px;}
+.bar-track{height:6px;background:var(--stroke-soft);border-radius:6px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:6px;transition:width .5s ease;}
+.route-opt{border:1px solid var(--stroke-soft);border-radius:var(--radius-m);padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color .15s;}
+.route-opt.selected{border-color:var(--mint);background:rgba(56,225,168,.05);}
+.route-opt.recommended{border-color:var(--mint-dim);}
+.chip-select{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:20px;border:1px solid var(--stroke);font-size:12.5px;margin:0 6px 8px 0;background:var(--bg-elev-2);}
+.chip-select.on{border-color:var(--mint);color:var(--mint);background:rgba(56,225,168,.08);}
+.chip-select input{display:none;}
+
+/* guardian chat */
+.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 200px);}
+.chat-log{flex:1;overflow-y:auto;padding:4px 0 12px;display:flex;flex-direction:column;gap:10px;}
+.msg{max-width:82%;padding:11px 14px;border-radius:16px;font-size:13.5px;line-height:1.45;}
+.msg.user{align-self:flex-end;background:var(--mint);color:#04211A;border-bottom-right-radius:4px;}
+.msg.ai{align-self:flex-start;background:var(--bg-elev-2);border:1px solid var(--stroke-soft);border-bottom-left-radius:4px;}
+.chat-input-row{display:flex;gap:8px;padding-top:8px;}
+
+/* tabs */
+.tabbar{display:flex;gap:6px;margin-bottom:16px;background:var(--bg-elev-2);padding:4px;border-radius:12px;}
+.tab{flex:1;text-align:center;padding:9px;border-radius:9px;font-size:12.5px;font-weight:600;color:var(--text-dim);}
+.tab.active{background:var(--bg-elev);color:var(--text);}
+
+/* profile */
+.avatar{width:64px;height:64px;border-radius:50%;background:linear-gradient(155deg,var(--mint),#1FA37C);display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:22px;font-weight:700;color:#04211A;flex-shrink:0;}
+.avatar-lg{width:84px;height:84px;font-size:28px;}
+
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.25);border-top-color:currentColor;border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty-state{text-align:center;padding:36px 16px;color:var(--text-faint);}
+</style>
+</head>
+<body>
+
+<div class="app-root" id="appRoot">
+
+  <!-- ============ SPLASH ============ -->
+  <div class="screen" id="view-splash">
+    <div class="splash-logo">
+      <svg width="42" height="42" viewBox="0 0 24 24" fill="none"><path d="M12 2L4 5v6c0 5.2 3.4 9.7 8 11 4.6-1.3 8-5.8 8-11V5l-8-3z" fill="#04211A"/><path d="M9 12l2 2 4-4" stroke="#38E1A8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h1 style="font-size:30px;">Pathra</h1>
+    <p class="splash-tag">Know your route before you take it</p>
+    <button class="btn btn-primary" style="margin-top:34px;padding:14px 38px;" onclick="Pathra.goTo('login')">Get started</button>
+  </div>
+
+  <!-- ============ LOGIN ============ -->
+  <div class="screen hidden" id="view-login">
+    <div class="auth-wrap">
+      <div class="auth-header">
+        <div class="kicker">WELCOME BACK</div>
+        <h1>Sign in to Pathra</h1>
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="you@example.com">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="loginPassword" placeholder="Your password">
+          <button class="pw-toggle" onclick="Pathra.togglePw('loginPassword',this)">SHOW</button>
+        </div>
+      </div>
+      <div class="row-between" style="margin-bottom:20px;">
+        <label class="checkbox-row"><input type="checkbox" id="rememberMe"> Remember me</label>
+        <a href="#" style="font-size:13px;" onclick="Pathra.forgotPassword();return false;">Forgot password?</a>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="Pathra.login()">Login</button>
+      <div class="auth-foot">
+        Don't have an account? <a href="#" onclick="Pathra.goTo('register');return false;">Create account</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ REGISTER ============ -->
+  <div class="screen hidden" id="view-register">
+    <div class="auth-wrap">
+      <div class="auth-header">
+        <div class="kicker">CREATE ACCOUNT</div>
+        <h1 id="regStepTitle">Personal details</h1>
+      </div>
+      <div class="stepper">
+        <div class="step-dot active" id="dot1"></div><div class="step-dot" id="dot2"></div><div class="step-dot" id="dot3"></div><div class="step-dot" id="dot4"></div>
+      </div>
+
+      <!-- STEP 1 -->
+      <div id="regStep1">
+        <div class="row" style="margin-bottom:18px;gap:14px;">
+          <div class="avatar-lg" id="regAvatarPreview">+</div>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('regPhotoInput').click()">Upload photo</button>
+          <input type="file" id="regPhotoInput" accept="image/*" class="hidden" onchange="Pathra.previewPhoto(event)">
+        </div>
+        <div class="field"><label>Full name</label><input id="regName" placeholder="Full name"></div>
+        <div class="field"><label>Email</label><input id="regEmail" type="email" placeholder="you@example.com"></div>
+        <div class="field"><label>Phone number</label><input id="regPhone" type="tel" placeholder="+91 98765 43210"></div>
+        <div class="row gap12">
+          <div class="field" style="flex:1;"><label>Date of birth</label><input id="regDob" type="date"></div>
+          <div class="field" style="flex:1;"><label>Gender</label>
+            <select id="regGender"><option>Female</option><option>Male</option><option>Non-binary</option><option>Prefer not to say</option></select>
+          </div>
+        </div>
+        <div class="field"><label>City</label><input id="regCity" placeholder="City"></div>
+        <div class="field"><label>Address</label><input id="regAddress" placeholder="Address"></div>
+        <div class="field"><label>Password</label><input id="regPassword" type="password" placeholder="Create a password"></div>
+        <div class="field"><label>Confirm password</label><input id="regPassword2" type="password" placeholder="Confirm password"></div>
+      </div>
+
+      <!-- STEP 2 -->
+      <div id="regStep2" class="hidden">
+        <h3 style="font-size:15px;margin-bottom:10px;">Primary emergency contact</h3>
+        <div class="field"><label>Name</label><input id="p1Name" placeholder="Contact name"></div>
+        <div class="row gap12">
+          <div class="field" style="flex:1;"><label>Relationship</label><input id="p1Rel" placeholder="e.g. Mother"></div>
+          <div class="field" style="flex:1;"><label>Phone</label><input id="p1Phone" type="tel" placeholder="Phone number"></div>
+        </div>
+        <div class="divider"></div>
+        <h3 style="font-size:15px;margin-bottom:10px;">Secondary emergency contact</h3>
+        <div class="field"><label>Name</label><input id="p2Name" placeholder="Contact name"></div>
+        <div class="row gap12">
+          <div class="field" style="flex:1;"><label>Relationship</label><input id="p2Rel" placeholder="e.g. Friend"></div>
+          <div class="field" style="flex:1;"><label>Phone</label><input id="p2Phone" type="tel" placeholder="Phone number"></div>
+        </div>
+        <div class="divider"></div>
+        <div class="field"><label>Doctor / medical contact (optional)</label><input id="docContact" placeholder="Name & phone"></div>
+        <div class="field"><label>Emergency notes (optional)</label><textarea id="emNotes" rows="3" placeholder="Allergies, medical conditions, anything responders should know"></textarea></div>
+      </div>
+
+      <!-- STEP 3: preferences -->
+      <div id="regStep3" class="hidden">
+        <div class="field"><label>Country</label>
+          <select id="regCountry" onchange="Pathra.onCountryChange()">
+            <option value="India">India</option><option value="United States">United States</option><option value="United Kingdom">United Kingdom</option><option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="field"><label>Local emergency number</label><input id="regEmNumber" value="112"></div>
+        <p class="faint" style="font-size:12px;margin-top:-6px;">Default for India is <strong>112</strong>. The police button uses your phone's own dialer — Pathra never places calls silently in the background.</p>
+      </div>
+
+      <!-- STEP 4 -->
+      <div id="regStep4" class="hidden">
+        <p class="muted" style="font-size:13px;margin-bottom:10px;">Choose which emergency triggers to enable. You can change these anytime in Settings.</p>
+        <div class="card" style="padding:6px 14px;">
+          <div class="toggle-row"><div><div class="label">Manual SOS</div></div><div class="switch on" data-trig="manualSOS" onclick="Pathra.toggleSwitch(this)"></div></div>
+          <div class="toggle-row"><div><div class="label">Shake trigger</div><div class="sub">Requires a repeated shake pattern to avoid false alarms</div></div><div class="switch on" data-trig="shake" onclick="Pathra.toggleSwitch(this)"></div></div>
+          <div class="toggle-row"><div><div class="label">Voice trigger</div><div class="sub">Where supported by your device</div></div><div class="switch" data-trig="voice" onclick="Pathra.toggleSwitch(this)"></div></div>
+          <div class="toggle-row"><div><div class="label">Quick access</div></div><div class="switch on" data-trig="quickAccess" onclick="Pathra.toggleSwitch(this)"></div></div>
+          <div class="toggle-row"><div><div class="label">Emergency call</div></div><div class="switch on" data-trig="emCall" onclick="Pathra.toggleSwitch(this)"></div></div>
+          <div class="toggle-row"><div><div class="label">Emergency SMS</div></div><div class="switch on" data-trig="emSms" onclick="Pathra.toggleSwitch(this)"></div></div>
+          <div class="toggle-row"><div><div class="label">Journey timeout</div></div><div class="switch on" data-trig="journeyTimeout" onclick="Pathra.toggleSwitch(this)"></div></div>
+          <div class="toggle-row"><div><div class="label">Route deviation monitoring</div></div><div class="switch on" data-trig="routeDeviation" onclick="Pathra.toggleSwitch(this)"></div></div>
+        </div>
+      </div>
+
+      <div class="row gap12" style="margin-top:22px;">
+        <button class="btn btn-outline btn-block" id="regBackBtn" onclick="Pathra.regBack()">Back</button>
+        <button class="btn btn-primary btn-block" id="regNextBtn" onclick="Pathra.regNext()">Continue</button>
+      </div>
+      <div class="auth-foot">Already have an account? <a href="#" onclick="Pathra.goTo('login');return false;">Sign in</a></div>
+    </div>
+  </div>
+
+  <!-- ============ APP SHELL ============ -->
+  <div id="app-shell">
+    <div class="topbar">
+     <div class="topbar-inner">
+      <div class="topbar-left">
+      <button class="icon-btn" onclick="Pathra.openDrawer()">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+        <button class="icon-btn back-btn" id="backHomeBtn" style="display:none" onclick="Pathra.goApp('dashboard')" aria-label="Back to dashboard">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Home
+        </button>
+      </div>
+      <div class="topbar-title" id="topbarTitle">Dashboard</div>
+      <button class="icon-btn" onclick="Pathra.openNotifPanel()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.7 21a2 2 0 01-3.4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <span class="badge-dot hidden" id="notifBadge"></span>
+      </button>
+     </div>
+    </div>
+
+    <div class="view-content">
+
+      <!-- ---------- DASHBOARD ---------- -->
+      <div class="view active" id="view-dashboard">
+        <div class="greet">
+          <div class="name" id="greetName">Welcome, —</div>
+          <div class="meta" id="greetMeta">—</div>
+          <div class="meta" id="greetLocation">📍 Locating…</div>
+          <div class="hidden" id="greetLocationActions" style="margin-top:8px;">
+            <button class="btn btn-ghost btn-sm" onclick="Pathra.retryLocation()">Try again</button>
+            <button class="btn btn-ghost btn-sm" onclick="Pathra.openManualLocation()">Set location manually</button>
+          </div>
+        </div>
+
+        <div class="row gap16" style="margin:14px 0;">
+          <div class="ring-wrap">
+            <svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="#1A2029" stroke-width="7" fill="none"/><circle id="dashScoreRing" cx="32" cy="32" r="27" stroke="#38E1A8" stroke-width="7" fill="none" stroke-linecap="round" stroke-dasharray="169.6" stroke-dashoffset="169.6"/></svg>
+            <div class="ring-val" id="dashScoreVal">—</div>
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:600;">Current Safety Score</div>
+            <div class="faint" style="font-size:11.5px;" id="dashScoreLabel">Estimated · based on your area</div>
+          </div>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="lbl">AQI · Air Quality</div>
+            <div class="val" id="dashAqi">—</div>
+            <div class="faint" style="font-size:11px;" id="dashAqiLabel">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="lbl">Weather</div>
+            <div class="val" id="dashWeather">—</div>
+            <div class="faint" style="font-size:11px;" id="dashWeatherLabel">—</div>
+          </div>
+        </div>
+
+        <div class="section-title">Nearby</div>
+        <div class="card" id="dashNearbyCard">
+          <div class="empty-state" id="dashNearbyLoading">Allow location to see nearby safe zones, police stations and hospitals.</div>
+        </div>
+
+        <div class="section-title">Explore Pathra</div>
+        <div class="feature-grid">
+          <div class="feature-card" onclick="Pathra.goApp('saferoute')">
+            <div class="ic" style="background:rgba(56,225,168,.12);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 20l-5-2V6l5-2 6 2 5-2v14l-5 2-6-2z" stroke="#38E1A8" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 4v14M15 6v14" stroke="#38E1A8" stroke-width="1.7"/></svg></div>
+            <div><h4>Safe Route</h4><p>Score a route before you walk it</p></div>
+          </div>
+          <div class="feature-card" onclick="Pathra.goApp('greentrail')">
+            <div class="ic" style="background:rgba(95,199,238,.12);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2C8 6 6 9 6 13a6 6 0 0012 0c0-4-2-7-6-11z" stroke="#5FC7EE" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 22v-6" stroke="#5FC7EE" stroke-width="1.7"/></svg></div>
+            <div><h4>Green Trail</h4><p>Find parks &amp; track your walk</p></div>
+          </div>
+          <div class="feature-card" onclick="Pathra.goApp('traffic')">
+            <div class="ic" style="background:rgba(245,185,66,.12);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="9" y="2" width="6" height="20" rx="2" stroke="#F5B942" stroke-width="1.7"/><circle cx="12" cy="7" r="1.2" fill="#F5B942"/><circle cx="12" cy="12" r="1.2" fill="#F5B942"/><circle cx="12" cy="17" r="1.2" fill="#F5B942"/></svg></div>
+            <div><h4>Traffic Watch</h4><p>ETA &amp; congestion, with alternates</p></div>
+          </div>
+          <div class="feature-card" onclick="Pathra.openSOS()">
+            <div class="ic" style="background:rgba(255,95,109,.12);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2l8 4v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-4z" stroke="#FF5F6D" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 8v5M12 16.2v.1" stroke="#FF5F6D" stroke-width="1.7" stroke-linecap="round"/></svg></div>
+            <div><h4>SOS Shield</h4><p>Shake or hold for emergency help</p></div>
+          </div>
+        </div>
+
+        <div class="section-title">Recent Activity <a href="#" style="font-size:12px;font-weight:600;" onclick="Pathra.goApp('activity');return false;">View all</a></div>
+        <div class="card" id="dashRecentActivity"><div class="empty-state">No activity yet.</div></div>
+      </div>
+
+      <!-- ---------- SAFE ROUTE ---------- -->
+      <div class="view" id="view-saferoute">
+        <div class="tabbar">
+          <div class="tab active" id="srTabPlan" onclick="Pathra.srTab('plan')">Plan</div>
+          <div class="tab" id="srTabPrefs" onclick="Pathra.srTab('prefs')">Preferences</div>
+          <div class="tab" id="srTabJourney" onclick="Pathra.srTab('journey')">Journey</div>
+        </div>
+
+        <div id="srPanePlan">
+          <div class="loc-inputs field">
+            <label>Start location</label>
+            <div class="row gap8">
+              <input id="srStart" placeholder="Search or use current location" oninput="Pathra.srSearch('start')">
+              <button class="btn btn-ghost btn-sm" onclick="Pathra.useCurrentLocation('start')">GPS</button>
+            </div>
+            <div class="autocomplete hidden" id="srStartAC"></div>
+          </div>
+          <div class="loc-inputs field">
+            <label>Destination</label>
+            <div class="row gap8">
+              <input id="srDest" placeholder="Where are you headed?" oninput="Pathra.srSearch('dest')">
+              <button class="btn btn-ghost btn-sm" onclick="Pathra.useCurrentLocation('dest')">GPS</button>
+            </div>
+            <div class="autocomplete hidden" id="srDestAC"></div>
+          </div>
+          <button class="btn btn-primary btn-block" onclick="Pathra.planRoute()" id="srPlanBtn">Find safest route</button>
+
+          <div id="srResults" class="hidden">
+            <div class="map-box" id="srMap" style="margin-top:16px;"></div>
+            <div class="row-between" style="margin-top:10px;">
+              <span class="pill pill-live">● Live OSM Route</span>
+              <a href="#" id="srOpenMaps" target="_blank" style="font-size:12.5px;">Open in Maps ↗</a>
+            </div>
+
+            <div class="section-title">Route options</div>
+            <div id="srRouteList"></div>
+
+            <div class="card" style="margin-top:14px;" id="srScoreCard">
+              <div class="row gap16">
+                <div class="ring-wrap">
+                  <svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="#1A2029" stroke-width="7" fill="none"/><circle id="srScoreRing" cx="32" cy="32" r="27" stroke="#38E1A8" stroke-width="7" fill="none" stroke-linecap="round" stroke-dasharray="169.6" stroke-dashoffset="169.6"/></svg>
+                  <div class="ring-val" id="srScoreVal">—</div>
+                </div>
+                <div>
+                  <div style="font-weight:600;font-size:14.5px;" id="srScoreClass">—</div>
+                  <div class="faint" style="font-size:11.5px;">Transparent estimate — not official police/CCTV data</div>
+                </div>
+              </div>
+              <div class="divider"></div>
+              <div id="srFactors"></div>
+              <div class="divider"></div>
+              <div class="row" style="gap:16px;">
+                <div><div class="faint" style="font-size:11px;">Distance</div><div class="mono" id="srDistance">—</div></div>
+                <div><div class="faint" style="font-size:11px;">Walk time</div><div class="mono" id="srDuration">—</div></div>
+                <div><div class="faint" style="font-size:11px;">ETA</div><div class="mono" id="srEta">—</div></div>
+              </div>
+              <div class="divider"></div>
+              <div style="font-size:12.5px;font-weight:600;margin-bottom:6px;">Why this score?</div>
+              <p class="muted" style="font-size:12.5px;line-height:1.5;" id="srWhy">—</p>
+            </div>
+
+            <button class="btn btn-primary btn-block" style="margin-top:14px;" onclick="Pathra.startWalking()">Start walking</button>
+          </div>
+        </div>
+
+        <div id="srPanePrefs" class="hidden">
+          <p class="muted" style="font-size:13px;margin-bottom:12px;">Select what matters most to you. Routes matching more of your preferences are weighted higher, even if slightly longer.</p>
+          <div id="srPrefChips"></div>
+          <button class="btn btn-outline btn-block" style="margin-top:14px;" onclick="Pathra.savePrefs()">Save preferences</button>
+        </div>
+
+        <div id="srPaneJourney" class="hidden">
+          <div class="empty-state" id="srJourneyEmpty">No active journey. Plan a route and tap "Start walking".</div>
+          <div id="srJourneyActive" class="hidden">
+            <div class="card">
+              <div class="row-between"><span class="pill pill-live">● Monitoring</span><span class="mono faint" id="srJourneyTimer">00:00</span></div>
+              <div class="divider"></div>
+              <div class="row gap16">
+                <div class="ring-wrap">
+                  <svg width="56" height="56"><circle cx="28" cy="28" r="23" stroke="#1A2029" stroke-width="6" fill="none"/><circle id="srJourneyRing" cx="28" cy="28" r="23" stroke="#38E1A8" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="144.5" stroke-dashoffset="144.5"/></svg>
+                  <div class="ring-val" style="font-size:13px;" id="srJourneyVal">—</div>
+                </div>
+                <div><div style="font-size:13.5px;font-weight:600;">Live safety monitoring</div><div class="faint" style="font-size:11.5px;">Adaptive · updates as you walk</div></div>
+              </div>
+            </div>
+            <button class="btn btn-danger btn-block" style="margin-top:14px;" onclick="Pathra.endJourney()">End journey</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---------- GREEN TRAIL ---------- -->
+      <div class="view" id="view-greentrail">
+        <div class="field row gap8">
+          <input id="gtSearch" placeholder="Search a location or use GPS" style="flex:1;">
+          <button class="btn btn-ghost btn-sm" onclick="Pathra.gtUseGps()">GPS</button>
+        </div>
+        <button class="btn btn-primary btn-block" onclick="Pathra.findGreenSpaces()" id="gtFindBtn">Find nearby green spaces</button>
+        <div class="map-box" id="gtMap" style="margin-top:14px;"></div>
+
+        <div class="section-title">Parks &amp; green spaces</div>
+        <div id="gtList"><div class="empty-state">Search a location to discover parks nearby.</div></div>
+
+        <div class="section-title">Walking tracker</div>
+        <div class="card">
+          <div class="row-between">
+            <div>
+              <div style="font-weight:600;" id="gtTrackStatus">Not tracking</div>
+              <div class="faint" style="font-size:11.5px;">GPS-based distance &amp; pace</div>
+            </div>
+            <button class="btn btn-primary btn-sm" id="gtTrackBtn" onclick="Pathra.toggleWalkTracking()">Start</button>
+          </div>
+          <div class="divider"></div>
+          <div class="row" style="gap:20px;">
+            <div><div class="faint" style="font-size:11px;">Distance</div><div class="mono" id="gtDistance">0.00 km</div></div>
+            <div><div class="faint" style="font-size:11px;">Duration</div><div class="mono" id="gtDuration">00:00</div></div>
+            <div><div class="faint" style="font-size:11px;">Pace</div><div class="mono" id="gtPace">—</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---------- TRAFFIC WATCH ---------- -->
+      <div class="view" id="view-traffic">
+        <div class="field"><label>Start</label><div class="row gap8"><input id="twStart" placeholder="Start location" oninput="Pathra.state.tw.startIsGps=false"><button class="btn btn-ghost btn-sm" onclick="Pathra.useCurrentLocation('twStart')">GPS</button></div></div>
+        <div class="field"><label>Destination</label><input id="twDest" placeholder="Destination"></div>
+        <button class="btn btn-primary btn-block" onclick="Pathra.planTraffic()" id="twBtn">Check traffic &amp; ETA</button>
+        <div id="twResults" class="hidden" style="margin-top:16px;">
+          <div class="map-box" id="twMap"></div>
+          <div class="stat-grid">
+            <div class="stat-card"><div class="lbl">ETA</div><div class="val" id="twEta">—</div></div>
+            <div class="stat-card"><div class="lbl">Distance</div><div class="val" id="twDistance">—</div></div>
+          </div>
+          <div class="card">
+            <div class="row-between"><span style="font-weight:600;font-size:13.5px;">Estimated congestion</span><span class="pill pill-est" id="twCongestionPill">—</span></div>
+            <p class="faint" style="font-size:11.5px;margin-top:8px;">Based on time-of-day heuristics — not live government traffic data.</p>
+          </div>
+          <div class="section-title">Alternate routes</div>
+          <div id="twAlts"></div>
+        </div>
+      </div>
+
+      <!-- ---------- GUARDIAN AI ---------- -->
+      <div class="view" id="view-guardian">
+        <div class="card" style="margin-bottom:14px;">
+          <div class="row gap12"><div class="avatar" style="background:linear-gradient(155deg,#5FC7EE,#2E86AB);">AI</div>
+          <div><div style="font-weight:600;font-size:14.5px;">Guardian AI</div><div class="faint" style="font-size:11.5px;">Safety guidance &amp; explainable predictions</div></div></div>
+        </div>
+        <div class="chat-wrap">
+          <div class="chat-log" id="chatLog">
+            <div class="msg ai">Hi, I'm Guardian AI. Ask me about a route's safety, what a score means, or what to do in a specific situation. I use available app data and general safety knowledge — I'm not a substitute for emergency services.</div>
+          </div>
+          <div class="chat-input-row">
+            <input id="chatInput" placeholder="Ask Guardian AI…" onkeydown="if(event.key==='Enter')Pathra.sendChat()">
+            <button class="btn btn-primary" onclick="Pathra.sendChat()">Send</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---------- BREATHING MAP ---------- -->
+      <div class="view" id="view-breathing">
+        <div class="map-box" id="bmMap"></div>
+        <div class="stat-grid">
+          <div class="stat-card"><div class="lbl">Current AQI</div><div class="val" id="bmAqi">—</div><div class="faint" style="font-size:11px;" id="bmAqiCat">—</div></div>
+          <div class="stat-card"><div class="lbl">PM2.5</div><div class="val" id="bmPm25">—</div><div class="faint" style="font-size:11px;">µg/m³</div></div>
+        </div>
+        <div class="card">
+          <div style="font-weight:600;font-size:13.5px;margin-bottom:6px;">Predicted exposure ahead</div>
+          <p class="muted" style="font-size:12.5px;line-height:1.5;" id="bmPrediction">Plan a route in Safe Route to see predicted pollution exposure along your path.</p>
+        </div>
+        <p class="faint" style="font-size:11px;margin-top:10px;">Air quality data from Open-Meteo, a public data source — not an official government monitoring feed.</p>
+      </div>
+
+      <!-- ---------- PROFILE ---------- -->
+      <div class="view" id="view-profile">
+        <div class="card">
+          <div class="row gap16">
+            <div class="avatar-lg" id="profAvatar">—</div>
+            <div><div style="font-size:17px;font-weight:600;" id="profName">—</div><div class="faint" id="profEmail">—</div><div class="faint" id="profCity">—</div></div>
+          </div>
+          <button class="btn btn-outline btn-block" style="margin-top:14px;" onclick="Pathra.openEditProfile()">Edit profile</button>
+        </div>
+
+        <div class="section-title">Personal information</div>
+        <div class="card" id="profPersonal"></div>
+
+        <div class="section-title">Emergency contacts</div>
+        <div class="card" id="profContacts"></div>
+
+        <div class="section-title">Emergency preferences</div>
+        <div class="card" id="profPrefs"></div>
+
+        <div class="section-title hidden" id="profNotesTitle">Emergency notes</div>
+        <div class="card hidden" id="profNotesCard"></div>
+
+        <div class="section-title">Account &amp; security</div>
+        <div class="card">
+          <div class="drawer-item" onclick="Pathra.openChangePassword()" style="padding:10px 4px;">Change password</div>
+          <div class="drawer-item danger" onclick="Pathra.confirmLogout()" style="padding:10px 4px;">Logout</div>
+        </div>
+      </div>
+
+      <!-- ---------- SETTINGS ---------- -->
+      <div class="view" id="view-settings">
+        <div class="section-title" style="margin-top:0;">Notifications</div>
+        <div class="card">
+          <div class="toggle-row"><div class="label">Route notifications</div><div class="switch on" data-setting="notifRoute" onclick="Pathra.toggleSwitch(this,true)"></div></div>
+          <div class="toggle-row"><div class="label">Walking notifications</div><div class="switch on" data-setting="notifWalk" onclick="Pathra.toggleSwitch(this,true)"></div></div>
+          <div class="toggle-row"><div class="label">SOS notifications</div><div class="switch on" data-setting="notifSos" onclick="Pathra.toggleSwitch(this,true)"></div></div>
+        </div>
+
+        <div class="section-title">Emergency &amp; SOS</div>
+        <div class="card">
+          <div class="toggle-row"><div class="label">Manual SOS</div><div class="switch on" data-setting="manualSOS" onclick="Pathra.toggleSwitch(this,true)"></div></div>
+          <div class="toggle-row"><div><div class="label">Shake SOS</div><div class="sub">Needs a repeated shake pattern + confirm step</div></div><div class="switch on" data-setting="shake" onclick="Pathra.toggleSwitch(this,true)"></div></div>
+          <div class="toggle-row"><div class="label">Emergency call</div><div class="switch on" data-setting="emCall" onclick="Pathra.toggleSwitch(this,true)"></div></div>
+          <div class="toggle-row"><div class="label">Emergency SMS</div><div class="switch on" data-setting="emSms" onclick="Pathra.toggleSwitch(this,true)"></div></div>
+          <div class="field" style="margin-top:10px;"><label>Emergency number</label><input id="settingsEmNumber" oninput="Pathra.saveEmNumber(this.value)"></div>
+        </div>
+
+        <div class="section-title">Journey safety</div>
+        <div class="card">
+          <div class="toggle-row"><div class="label">Journey timeout</div><div class="switch on" data-setting="journeyTimeout" onclick="Pathra.toggleSwitch(this,true)"></div></div>
+          <div class="toggle-row"><div class="label">Route deviation monitoring</div><div class="switch on" data-setting="routeDeviation" onclick="Pathra.toggleSwitch(this,true)"></div></div>
+        </div>
+
+        <div class="section-title">Privacy</div>
+        <div class="card">
+          <p class="muted" style="font-size:12.5px;line-height:1.55;">Pathra stores your profile, emergency contacts, activity history and Guardian AI chat locally in this browser. Location is only requested with your consent and is used to power Safe Route, Traffic Watch, Green Trail and SOS. Nothing is sent to a government or police database.</p>
+        </div>
+
+        <div class="section-title">Safety score</div>
+        <div class="card">
+          <p class="muted" style="font-size:12.5px;line-height:1.55;">Safety scores and traffic estimates are heuristic calculations from public map data, weather and time of day. They are <strong>not</strong> official police, crime, CCTV or government safety data, and should be used as one input among many.</p>
+        </div>
+
+        <div class="section-title">About</div>
+        <div class="card">
+          <div class="row-between"><span class="muted" style="font-size:13px;">App version</span><span class="mono">1.0.0</span></div>
+        </div>
+      </div>
+
+      <!-- ---------- ACTIVITY HISTORY ---------- -->
+      <div class="view" id="view-activity">
+        <div class="tabbar" style="flex-wrap:wrap;">
+          <div class="tab active" onclick="Pathra.filterActivity('all',this)">All</div>
+          <div class="tab" onclick="Pathra.filterActivity('route',this)">Safe Route</div>
+          <div class="tab" onclick="Pathra.filterActivity('traffic',this)">Traffic</div>
+          <div class="tab" onclick="Pathra.filterActivity('green',this)">Green Trail</div>
+          <div class="tab" onclick="Pathra.filterActivity('sos',this)">SOS</div>
+        </div>
+        <div id="activityList"></div>
+      </div>
+
+    </div>
+
+    <div class="bottomnav">
+      <div class="nav-item active" data-nav="dashboard" onclick="Pathra.goApp('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M3 11l9-8 9 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 10v10h14V10" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item" data-nav="profile" onclick="Pathra.goApp('profile')">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M4.5 20c1.5-4 4.2-6 7.5-6s6 2 7.5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        Profile
+      </div>
+      <div class="nav-item" data-nav="guardian" onclick="Pathra.goApp('guardian')">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l8 4v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        Guardian AI
+      </div>
+      <div class="nav-item" data-nav="activity" onclick="Pathra.goApp('activity')">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M3 12h4l2-7 4 14 2-7h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Activity
+      </div>
+    </div>
+
+    <button class="sos-fab" onclick="Pathra.openSOS()">SOS</button>
+  </div>
+
+  <!-- drawer -->
+  <div class="drawer-overlay" id="drawerOverlay" onclick="Pathra.closeDrawer()"></div>
+  <div class="drawer" id="drawer">
+    <div class="row gap12" style="margin-bottom:22px;">
+      <div class="avatar" id="drawerAvatar">—</div>
+      <div><div style="font-weight:600;" id="drawerName">—</div><div class="faint" style="font-size:12px;" id="drawerEmail">—</div></div>
+    </div>
+    <div class="drawer-item" onclick="Pathra.openNotifPanel();Pathra.closeDrawer();">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.7"/></svg>
+      Notifications
+    </div>
+    <div class="drawer-item" onclick="Pathra.goApp('settings');Pathra.closeDrawer();">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/><path d="M19 12a7 7 0 00-.1-1.2l2-1.6-2-3.4-2.3.9a7 7 0 00-2-1.2L14 3h-4l-.4 2.5a7 7 0 00-2 1.2l-2.3-.9-2 3.4 2 1.6a7 7 0 000 2.4l-2 1.6 2 3.4 2.3-.9a7 7 0 002 1.2L10 21h4l.4-2.5a7 7 0 002-1.2l2.3.9 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z" stroke="currentColor" stroke-width="1.3"/></svg>
+      Settings
+    </div>
+    <div class="drawer-item danger" onclick="Pathra.confirmLogout();Pathra.closeDrawer();">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Logout
+    </div>
+  </div>
+
+  <div class="toast-wrap" id="toastWrap"></div>
+
+  <!-- generic modal -->
+  <div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)Pathra.closeModal()">
+    <div class="sheet" id="modalSheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>window.L || document.write('<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"><\/script>');</script>
+<script>window.L || document.write('<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>');</script>
+<script>
+/* ============================================================
+   PATHRA — client-side app logic
+   All data persisted to localStorage. No backend required.
+   Free/public APIs only: Nominatim, OSRM, Overpass, Open-Meteo.
+   ============================================================ */
+const Pathra = (function(){
+
+  const LS = {
+    user:'pathra_user', session:'pathra_session', settings:'pathra_settings',
+    activity:'pathra_activity', notifications:'pathra_notifications', chat:'pathra_chat'
+  };
+
+  const DEFAULT_SETTINGS = {
+    notifRoute:true, notifWalk:true, notifSos:true,
+    manualSOS:true, shake:true, voice:false, quickAccess:true,
+    emCall:true, emSms:true, journeyTimeout:true, routeDeviation:true,
+    emergencyNumber:'112', country:'India', prefs:[]
+  };
+
+  let state = {
+    user:null, settings:null, currentPos:null,
+    maps:{}, regStep:1, regTriggers:{manualSOS:true,shake:true,voice:false,quickAccess:true,emCall:true,emSms:true,journeyTimeout:true,routeDeviation:true},
+    regPhoto:null,
+    sr:{ startPos:null, destPos:null, routes:[], selected:0, journeyActive:false, journeyTimer:null, journeySeconds:0, journeyDrift:0 },
+    gt:{ tracking:false, timerId:null, seconds:0, distance:0, lastPos:null, watchId:null, focusPos:null },
+    tw:{ startPos:null, destPos:null },
+    shakeBuf:[], shakeCooldownUntil:0,
+    activityFilter:'all', acDebounce:null
+  };
+
+  /* ================= storage helpers ================= */
+  function save(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+  function load(k,f){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):f; }catch(e){ return f; } }
+  async function sha256(text){
+    if(window.crypto && crypto.subtle){
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+      return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    }
+    let h=0; for(let i=0;i<text.length;i++){ h=(h<<5)-h+text.charCodeAt(i); h|=0; } return 'fb'+h;
+  }
+  function v(id){ return (document.getElementById(id).value||'').trim(); }
+  function escapeHtml(s){ return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  function toast(msg,kind){
+    const wrap=document.getElementById('toastWrap');
+    const el=document.createElement('div'); el.className='toast';
+    if(kind==='danger') el.style.borderColor='#5A2126';
+    if(kind==='warn') el.style.borderColor='#4A3B1A';
+    el.textContent=msg; wrap.appendChild(el);
+    setTimeout(()=>{ el.style.transition='opacity .3s'; el.style.opacity='0'; setTimeout(()=>el.remove(),300); },3600);
+  }
+  function initials(name){ if(!name) return '—'; const p=name.trim().split(/\s+/); return ((p[0]?.[0]||'')+(p[1]?.[0]||'')).toUpperCase(); }
+
+  /* ================= navigation ================= */
+  function goTo(screen){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
+    const el=document.getElementById('view-'+screen); if(el) el.classList.remove('hidden');
+  }
+  function goApp(view){
+    document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+    document.getElementById('view-'+view).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.nav===view));
+    const titles={dashboard:'Dashboard',saferoute:'Safe Route',greentrail:'Green Trail',traffic:'Traffic Watch',
+      guardian:'Guardian AI',breathing:'Breathing Map',profile:'Profile',settings:'Settings',activity:'Activity History'};
+    document.getElementById('topbarTitle').textContent = titles[view]||'Pathra';
+    window.scrollTo(0,0);
+    if(view==='profile') renderProfile();
+    if(view==='settings') renderSettings();
+    if(view==='activity') renderActivity();
+    if(view==='breathing') loadBreathingMap();
+    if(view==='saferoute') ensureMap('srMap');
+    const back=document.getElementById('backHomeBtn'); if(back) back.style.display = view==='dashboard' ? 'none' : 'flex';
+    if(view==='saferoute'||view==='greentrail'||view==='traffic'){ updateLocChips(); autoFillForView(view); }
+  }
+  function togglePw(id,btn){
+    const el=document.getElementById(id);
+    if(el.type==='password'){ el.type='text'; btn.textContent='HIDE'; } else { el.type='password'; btn.textContent='SHOW'; }
+  }
+  function forgotPassword(){ toast('If an account exists for that email, reset instructions would be sent.'); }
+
+  /* ================= drawer / notifications ================= */
+  function openDrawer(){
+    document.getElementById('drawer').classList.add('open');
+    document.getElementById('drawerOverlay').classList.add('open');
+    document.getElementById('drawerAvatar').textContent = initials(state.user?.name);
+    document.getElementById('drawerName').textContent = state.user?.name || '—';
+    document.getElementById('drawerEmail').textContent = state.user?.email || '—';
+  }
+  function closeDrawer(){
+    document.getElementById('drawer').classList.remove('open');
+    document.getElementById('drawerOverlay').classList.remove('open');
+  }
+  function addNotification(title,body,level){
+    const list=load(LS.notifications,[]);
+    list.unshift({title,body,level:level||'info',time:Date.now(),read:false});
+    save(LS.notifications,list.slice(0,50));
+    updateNotifBadge();
+  }
+  function updateNotifBadge(){
+    const list=load(LS.notifications,[]);
+    document.getElementById('notifBadge').classList.toggle('hidden', !list.some(n=>!n.read));
+  }
+  function openNotifPanel(){
+    const list=load(LS.notifications,[]);
+    list.forEach(n=>n.read=true); save(LS.notifications,list); updateNotifBadge();
+    let body='<h3 style="margin-bottom:14px;">Notifications</h3>';
+    if(!list.length) body+='<div class="empty-state">No notifications yet.</div>';
+    else body+=list.map(n=>`
+      <div class="list-row" style="align-items:flex-start;">
+        <div class="list-ic" style="background:${n.level==='alert'?'rgba(255,95,109,.12)':n.level==='warn'?'rgba(245,185,66,.12)':'var(--bg-elev-2)'};">${n.level==='alert'?'⚠':n.level==='warn'?'!':'i'}</div>
+        <div><div class="t">${escapeHtml(n.title)}</div><div class="s">${escapeHtml(n.body)}</div>
+        <div class="s faint" style="margin-top:2px;">${new Date(n.time).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div></div>
+      </div>`).join('');
+    openModal(body);
+  }
+
+  /* ================= modal ================= */
+  function openModal(html,centered){
+    document.getElementById('modalBody').innerHTML=html;
+    const ov=document.getElementById('modalOverlay');
+    ov.classList.toggle('center', !!centered);
+    ov.classList.add('open');
+  }
+  function closeModal(){ document.getElementById('modalOverlay').classList.remove('open'); }
+
+  /* ================= switches ================= */
+  function toggleSwitch(el,isSetting){
+    el.classList.toggle('on'); const on=el.classList.contains('on');
+    if(isSetting){ state.settings[el.dataset.setting]=on; save(LS.settings,state.settings); }
+    else if(el.dataset.trig){ state.regTriggers[el.dataset.trig]=on; }
+  }
+
+  /* ================= geolocation ================= */
+  function getPosition(opts){
+    /* Watches the GPS for a few seconds and returns the most accurate fix (like Ola/Uber do).
+       Resolves early as soon as accuracy is within `target` metres. Result includes acc (metres). */
+    const o = Object.assign({target:25, maxWait:15000}, opts||{});
+    return new Promise((resolve,reject)=>{
+      if(!navigator.geolocation){ reject({code:0,message:"This browser doesn't support location services."}); return; }
+      if(!window.isSecureContext){
+        reject({code:'insecure', message:"Your browser is blocking location because this page isn't loaded securely (this happens when a file is opened directly from disk, e.g. a file:// address). See the fix below."});
+        return;
+      }
+      let best=null, done=false, wid=null, timer=null;
+      const finish=(ok,val)=>{
+        if(done) return; done=true; clearTimeout(timer);
+        if(wid!=null) navigator.geolocation.clearWatch(wid);
+        ok ? resolve(val) : reject(val);
+      };
+      wid = navigator.geolocation.watchPosition(
+        pos=>{
+          const fix={lat:pos.coords.latitude, lon:pos.coords.longitude, acc:pos.coords.accuracy, t:Date.now()};
+          if(!best || fix.acc<best.acc) best=fix;
+          if(fix.acc<=o.target) finish(true,best);
+        },
+        err=>{
+          if(best){ finish(true,best); return; }
+          const msgs={1:'Location permission was denied in the browser.',2:'Your position is currently unavailable.',3:'Location request timed out.'};
+          finish(false,{code:err.code, message: msgs[err.code] || 'Could not get your location.'});
+        },
+        {enableHighAccuracy:true, maximumAge:0, timeout:o.maxWait}
+      );
+      timer=setTimeout(()=>{ best ? finish(true,best) : finish(false,{code:3,message:'Location request timed out.'}); }, o.maxWait+1500);
+    });
+  }
+  /* Always ask the device for a fresh fix; only fall back to the last known one if that fails */
+  async function freshPosition(){
+    if(state.pinned){ state.currentPos = state.pinned; return state.pinned; }
+    try{
+      const pos = await getPosition();
+      state.currentPos = pos;
+      return pos;
+    }catch(err){
+      if(state.currentPos) return state.currentPos;
+      throw err;
+    }
+  }
+  /* Keep currentPos updated continuously while the app is open */
+  let _locWatchId = null;
+  function startLocationWatch(){
+    if(_locWatchId!=null || !navigator.geolocation || !window.isSecureContext) return;
+    _locWatchId = navigator.geolocation.watchPosition(
+      pos=>{
+        if(state.pinned) return;
+        const fix={lat:pos.coords.latitude, lon:pos.coords.longitude, acc:pos.coords.accuracy, t:Date.now()};
+        const prev=state.currentPos;
+        if(prev && prev.t && prev.acc){
+          const moved=haversine(prev.lat,prev.lon,fix.lat,fix.lon)*1000;
+          const better = fix.acc <= prev.acc;
+          const stale = fix.t - prev.t > 20000;
+          const reallyMoved = moved > (prev.acc + fix.acc);
+          if(!(better||stale||reallyMoved)) return;   // don't let a coarse Wi-Fi/IP fix overwrite a good GPS fix
+        }
+        state.currentPos = fix;
+        updateLocChips();
+      },
+      ()=>{},
+      {enableHighAccuracy:true, maximumAge:0, timeout:20000}
+    );
+  }
+  function stopLocationWatch(){
+    if(_locWatchId!=null && navigator.geolocation){ navigator.geolocation.clearWatch(_locWatchId); }
+    _locWatchId = null;
+  }
+  /* ================= live location chip + auto-fill (Ola/Uber style) ================= */
+  let _chipLast=null, _chipLabel='';
+  async function updateLocChips(){
+    const chips=document.querySelectorAll('[data-locchip]'); if(!chips.length) return;
+    const pos = state.pinned || state.currentPos;
+    if(!pos){
+      chips.forEach(c=>{ c.className='loc-chip warn'; c.innerHTML='<span class="lc-dot"></span><span class="lc-txt">Locating you…</span><button class="btn btn-ghost btn-sm" onclick="Pathra.refreshLocation()">Retry</button>'; });
+      return;
+    }
+    if(!_chipLast || haversine(_chipLast.lat,_chipLast.lon,pos.lat,pos.lon)*1000>25){
+      _chipLast={lat:pos.lat,lon:pos.lon};
+      reverseGeocode(pos.lat,pos.lon).then(l=>{ _chipLabel=l; renderLocChips(); });
+    }
+    renderLocChips();
+  }
+  function renderLocChips(){
+    const pos = state.pinned || state.currentPos; if(!pos) return;
+    const pinned=!!state.pinned, acc=pos.acc||0, approx=!pinned && acc>150;
+    const accTxt = acc>=1000 ? '±'+(acc/1000).toFixed(1)+' km' : '±'+Math.round(acc)+' m';
+    const sub = pinned ? 'Pinned by you — exact' : approx ? 'Approximate ('+accTxt+') — pin your exact spot' : 'Live GPS · accurate '+accTxt;
+    const label = _chipLabel || (pos.lat.toFixed(4)+', '+pos.lon.toFixed(4));
+    document.querySelectorAll('[data-locchip]').forEach(c=>{
+      c.className='loc-chip'+(approx?' warn':'');
+      c.innerHTML='<span class="lc-dot"></span><span class="lc-txt">'+escapeHtml(label)+'<small>'+sub+'</small></span>'
+        + (pinned ? '<button class="btn btn-ghost btn-sm" onclick="Pathra.refreshLocation()">Use GPS</button>'
+                  : '<button class="btn btn-ghost btn-sm" onclick="Pathra.refreshLocation()" aria-label="Refresh location">↻</button>')
+        + '<button class="btn '+(approx?'btn-primary':'btn-ghost')+' btn-sm" onclick="Pathra.openManualLocation()">'+(approx?'Pin exact spot':'Pin')+'</button>';
+    });
+  }
+  /* When a module opens, fill its start/focus with the user's current location automatically */
+  async function autoFillForView(view, force){
+    if(view==='saferoute'||view==='traffic') return;   // user searches, or taps GPS
+    try{
+      if(view==='saferoute'){
+        const typed=document.getElementById('srStart').value.trim();
+        if(!typed || state.sr.startIsGps) await useCurrentLocation('start',true);
+      }else if(view==='traffic'){
+        const typed=document.getElementById('twStart').value.trim();
+        if(!typed || state.tw.startIsGps) await useCurrentLocation('twStart',true);
+      }else if(view==='greentrail'){
+        const typed=document.getElementById('gtSearch').value.trim();
+        if(!typed || state.gt.focusIsGps){
+          await gtUseGps(true);
+          if(force || !state.gt.autoRan){ state.gt.autoRan=true; findGreenSpaces(); }
+        }
+      }
+    }catch(e){}
+  }
+  function afterLocationSet(){
+    updateLocChips();
+    const act=document.querySelector('.view.active'); if(!act) return;
+    const v=act.id.replace('view-','');
+    if(v==='saferoute'||v==='greentrail'||v==='traffic') autoFillForView(v,true);
+  }
+  async function refreshLocation(){
+    state.pinned=null;
+    document.querySelectorAll('[data-locchip] .lc-txt').forEach(e=>e.textContent='Getting exact location…');
+    try{
+      const pos=await getPosition({target:20, maxWait:15000});
+      state.currentPos=pos;
+    }catch(err){ toast(err.message||'Could not get your location.','warn'); }
+    _chipLast=null; updateLocChips();
+    if(state.currentPos){
+      const act=document.querySelector('.view.active');
+      if(act && act.id==='view-dashboard') applyDashboardLocation(state.currentPos);
+      else afterLocationSet();
+    }
+  }
+
+  async function reverseGeocode(lat,lon){
+    const fallback = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+    try{
+      const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&lat=${lat}&lon=${lon}`);
+      const j=await r.json();
+      const ad=j.address||{};
+      const parts=[ad.amenity||ad.building||ad.shop||ad.tourism||ad.leisure, ad.road, ad.neighbourhood||ad.suburb||ad.hamlet, ad.village||ad.town||ad.city||ad.county]
+        .filter(Boolean).filter((v,i,arr)=>arr.indexOf(v)===i);
+      if(parts.length) return parts.slice(0,4).join(', ');
+      return j.display_name ? j.display_name.split(',').slice(0,3).join(',') : fallback;
+    }catch(e){ return fallback; }
+  }
+
+  /* ================= registration ================= */
+  function previewPhoto(ev){
+    const f=ev.target.files[0]; if(!f) return;
+    const reader=new FileReader();
+    reader.onload=e=>{
+      state.regPhoto=e.target.result;
+      const prev=document.getElementById('regAvatarPreview');
+      prev.style.backgroundImage=`url(${e.target.result})`; prev.style.backgroundSize='cover'; prev.style.backgroundPosition='center';
+      prev.textContent='';
+    };
+    reader.readAsDataURL(f);
+  }
+  function onCountryChange(){
+    const c=document.getElementById('regCountry').value;
+    document.getElementById('regEmNumber').value = c==='India'?'112':(c==='United States'?'911':(c==='United Kingdom'?'999':'112'));
+  }
+  function regNext(){
+    if(state.regStep===1){
+      const name=v('regName'), email=v('regEmail'), phone=v('regPhone'), pw=v('regPassword'), pw2=v('regPassword2');
+      if(!name||!email||!phone||!pw){ toast('Please fill in all required fields.'); return; }
+      if(!email.includes('@')){ toast('Please enter a valid email.'); return; }
+      if(pw.length<6){ toast('Password must be at least 6 characters.'); return; }
+      if(pw!==pw2){ toast('Passwords do not match.'); return; }
+    }
+    if(state.regStep===4){ finishRegistration(); return; }
+    state.regStep++; showRegStep();
+  }
+  function regBack(){
+    if(state.regStep===1){ goTo('login'); return; }
+    state.regStep--; showRegStep();
+  }
+  function showRegStep(){
+    for(let i=1;i<=4;i++){
+      document.getElementById('regStep'+i).classList.toggle('hidden', i!==state.regStep);
+      const dot=document.getElementById('dot'+i);
+      dot.classList.toggle('active', i===state.regStep);
+      dot.classList.toggle('done', i<state.regStep);
+    }
+    const titles={1:'Personal details',2:'Emergency details',3:'Preferences',4:'Emergency trigger settings'};
+    document.getElementById('regStepTitle').textContent=titles[state.regStep];
+    document.getElementById('regBackBtn').textContent = state.regStep===1?'Cancel':'Back';
+    document.getElementById('regNextBtn').textContent = state.regStep===4?'Finish setup':'Continue';
+  }
+  async function finishRegistration(){
+    const pwHash=await sha256(v('regPassword'));
+    const user={
+      name:v('regName'), email:v('regEmail'), phone:v('regPhone'), dob:v('regDob'),
+      gender:document.getElementById('regGender').value, city:v('regCity'), address:v('regAddress'),
+      photo:state.regPhoto, passwordHash:pwHash,
+      contacts:{ primary:{name:v('p1Name'),rel:v('p1Rel'),phone:v('p1Phone')}, secondary:{name:v('p2Name'),rel:v('p2Rel'),phone:v('p2Phone')} },
+      doctor:v('docContact'), notes:v('emNotes'),
+      country:document.getElementById('regCountry').value, emergencyNumber:v('regEmNumber')||'112'
+    };
+    save(LS.user,user);
+    const settings=Object.assign({},DEFAULT_SETTINGS,state.regTriggers,{emergencyNumber:user.emergencyNumber,country:user.country});
+    save(LS.settings,settings); save(LS.session,true);
+    state.user=user; state.settings=settings;
+    toast('Account created — welcome to Pathra.');
+    enterApp();
+  }
+
+  /* ================= login / logout ================= */
+  async function login(){
+    const email=v('loginEmail'), pw=document.getElementById('loginPassword').value;
+    if(!email||!pw){ toast('Enter your email and password.'); return; }
+    const user=load(LS.user,null);
+    if(!user || user.email.toLowerCase()!==email.toLowerCase()){ toast('No account found for that email.'); return; }
+    const hash=await sha256(pw);
+    if(hash!==user.passwordHash){ toast('Incorrect password.'); return; }
+    save(LS.session,true); state.user=user; state.settings=load(LS.settings,DEFAULT_SETTINGS);
+    toast('Welcome back, '+user.name.split(' ')[0]+'.');
+    enterApp();
+  }
+  function confirmLogout(){
+    openModal(`<h3 style="margin-bottom:8px;">Log out?</h3>
+      <p class="muted" style="font-size:13.5px;margin-bottom:20px;">Are you sure you want to logout?</p>
+      <div class="row gap12"><button class="btn btn-outline btn-block" onclick="Pathra.closeModal()">Cancel</button>
+      <button class="btn btn-danger btn-block" onclick="Pathra.doLogout()">Logout</button></div>`, true);
+  }
+  function doLogout(){
+    stopLocationWatch(); state.currentPos=null;
+    save(LS.session,false); stopWalkTracking(true); closeModal();
+    document.getElementById('app-shell').classList.remove('active');
+    goTo('login'); toast('Logged out.');
+  }
+
+  function enterApp(){ setTimeout(syncNative,300);
+    document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
+    document.getElementById('app-shell').classList.add('active');
+    goApp('dashboard');
+    loadDashboard();
+    startLocationWatch();
+    setupShakeDetection();
+    renderChatHistory();
+  }
+
+  /* ================= dashboard ================= */
+  async function loadDashboard(){
+    const now=new Date();
+    document.getElementById('greetName').textContent='Welcome, '+ (state.user?.name?.split(' ')[0] || 'there');
+    document.getElementById('greetMeta').textContent = now.toLocaleDateString([], {weekday:'long', month:'long', day:'numeric'}) + ' · ' + now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    setInterval(()=>{ document.getElementById('greetMeta').textContent = new Date().toLocaleDateString([], {weekday:'long', month:'long', day:'numeric'}) + ' · ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }, 30000);
+
+    renderRecentActivity();
+
+    document.getElementById('greetLocationActions').classList.add('hidden');
+    document.getElementById('greetLocation').textContent = '📍 Locating…';
+    try{
+      const pos = state.pinned || await getPosition();
+      state.currentPos = pos;
+      applyDashboardLocation(pos);
+      startLocationWatch();
+      updateLocChips();
+      if(pos.acc>500 && !state.pinned && !state._pinPrompted){
+        state._pinPrompted=true;
+        toast('Your device gave only an approximate location. Drag the pin to your exact spot.','warn');
+        setTimeout(openManualLocation, 700);
+      }
+    }catch(err){
+      showLocationError(err);
+    }
+  }
+
+  async function applyDashboardLocation(pos){
+    document.getElementById('greetLocationActions').classList.add('hidden');
+    try{
+      const label = await reverseGeocode(pos.lat, pos.lon);
+      const approx = pos.acc && pos.acc>200 && !state.pinned;
+      const accTxt = approx ? ` (approx ±${pos.acc>=1000?(pos.acc/1000).toFixed(1)+' km':Math.round(pos.acc)+' m'} — tap Set location manually to pin your exact spot)` : (state.pinned ? ' (pinned)' : '');
+      document.getElementById('greetLocation').textContent = '📍 ' + label + accTxt;
+      if(approx || state.pinned) document.getElementById('greetLocationActions').classList.remove('hidden');
+    }catch(e){
+      document.getElementById('greetLocation').textContent = `📍 ${pos.lat.toFixed(4)}, ${pos.lon.toFixed(4)}`;
+    }
+    loadWeatherAqi(pos.lat,pos.lon);
+    loadNearby(pos.lat,pos.lon);
+    const score = computeAreaSafetyScore(pos.lat,pos.lon,new Date());
+    renderRing('dashScoreRing','dashScoreVal', score.total);
+    document.getElementById('dashScoreLabel').textContent = score.classification + ' · Estimated for your area';
+  }
+
+  function showLocationError(err){
+    let msg = err.message || 'Could not get your location.';
+    let showFix = false;
+    if(err.code==='insecure'){
+      msg = "This page isn't running over HTTPS, so your browser blocks location access entirely (no permission prompt even appears).";
+      showFix = true;
+    } else if(err.code===1){
+      msg = "Location permission was denied. Click the lock/site-info icon in your browser's address bar, allow Location for this page, then tap Try again.";
+    }
+    document.getElementById('greetLocation').textContent = '📍 Location unavailable — ' + msg;
+    document.getElementById('greetLocationActions').classList.remove('hidden');
+    document.getElementById('greetLocationActions').innerHTML = `
+      <button class="btn btn-ghost btn-sm" onclick="Pathra.retryLocation()">Try again</button>
+      <button class="btn btn-ghost btn-sm" onclick="Pathra.openManualLocation()">Set location manually</button>
+      ${showFix ? '<button class="btn btn-ghost btn-sm" onclick="Pathra.showLocationFixHelp()">How to fix this</button>' : ''}
+    `;
+    document.getElementById('dashNearbyLoading').textContent = 'Location access is needed to show nearby safe zones, police stations and hospitals.';
+    renderRing('dashScoreRing','dashScoreVal', null);
+  }
+
+  function showLocationFixHelp(){
+    openModal(`
+      <h3 style="margin-bottom:10px;">Getting real GPS working</h3>
+      <p class="muted" style="font-size:13px;margin-bottom:14px;">Browsers only allow location access on secure (HTTPS) pages, or on <span class="mono">localhost</span>. Opening the HTML file straight from disk (a <span class="mono">file://</span> address) doesn't qualify — this is a browser security rule, not a Pathra setting. A couple of easy ways around it:</p>
+      <div style="font-weight:600;font-size:13.5px;margin-bottom:6px;">Option 1 — run a tiny local server</div>
+      <p class="muted" style="font-size:12.5px;margin-bottom:6px;">In the folder with the file, run one of these, then open the http://localhost link it gives you:</p>
+      <div class="card mono" style="font-size:12px;padding:10px 12px;margin-bottom:14px;">python3 -m http.server 8000<br>then visit http://localhost:8000</div>
+      <div style="font-weight:600;font-size:13.5px;margin-bottom:6px;">Option 2 — host it for free</div>
+      <p class="muted" style="font-size:12.5px;margin-bottom:14px;">Drag the file onto <span class="mono">app.netlify.com/drop</span> (or similar) and open the https:// link it gives you — on your phone this also makes it installable like an app.</p>
+      <div style="font-weight:600;font-size:13.5px;margin-bottom:6px;">In the meantime</div>
+      <p class="muted" style="font-size:12.5px;margin-bottom:14px;">Use "Set location manually" to search any address — every feature (safety score, AQI, nearby places, routing) works the same way with it.</p>
+      <button class="btn btn-primary btn-block" onclick="Pathra.closeModal()">Got it</button>
+    `);
+  }
+
+  async function retryLocation(){
+    document.getElementById('greetLocation').textContent = '📍 Locating…';
+    document.getElementById('greetLocationActions').classList.add('hidden');
+    try{
+      state.pinned = null;
+      const pos = await getPosition();
+      state.currentPos = pos;
+      applyDashboardLocation(pos);
+      _chipLast=null; updateLocChips();
+      toast('Location updated.');
+    }catch(err){
+      showLocationError(err);
+    }
+  }
+
+  function openManualLocation(){
+    openModal(`
+      <h3 style="margin-bottom:6px;">Set your exact location</h3>
+      <p class="muted" style="font-size:13px;margin-bottom:12px;">Search for your place, or tap the map / drag the pin to your exact spot. Pathra will use it everywhere (Safe Route, Green Trail, SOS).</p>
+      <div class="loc-inputs field">
+        <input id="manualLocInput" placeholder="Search a city, area or address" oninput="Pathra.manualLocSearch()">
+        <div class="autocomplete hidden" id="manualLocAC"></div>
+      </div>
+      <div id="pickMap" style="height:230px;border-radius:12px;margin:10px 0;overflow:hidden;"></div>
+      <div id="pickLabel" class="muted" style="font-size:12.5px;margin-bottom:10px;">Tap the map or drag the pin.</div>
+      <button class="btn btn-primary btn-block" onclick="Pathra.confirmPin()" style="margin-bottom:8px;">Use this pin</button>
+      <button class="btn btn-ghost btn-block" onclick="Pathra.closeModal()">Cancel</button>
+    `, true);
+    setTimeout(initPickMap, 150);
+  }
+  let _pick = {map:null, marker:null, pos:null};
+  function initPickMap(){
+    const box = document.getElementById('pickMap'); if(!box) return;
+    if(typeof L==='undefined'){ box.innerHTML='<div class="muted" style="padding:20px;font-size:13px;">Map could not load. Use the search box above.</div>'; return; }
+    if(_pick.map){ try{ _pick.map.remove(); }catch(e){} _pick.map=null; }
+    const have = state.pinned || state.currentPos;
+    const c = have || {lat:15.3173, lon:75.7139};
+    const m = L.map('pickMap', {zoomControl:true, attributionControl:true}).setView([c.lat,c.lon], have?15:7);
+    addBaseMap(m);
+    const mk = L.marker([c.lat,c.lon], {draggable:true, icon:pinIcon('#38E1A8')}).addTo(m);
+    _pick = {map:m, marker:mk, pos:{lat:c.lat, lon:c.lon}};
+    const upd = async (ll)=>{
+      _pick.pos = {lat:ll.lat, lon:ll.lng}; mk.setLatLng(ll);
+      const lab = await reverseGeocode(ll.lat, ll.lng);
+      const el = document.getElementById('pickLabel'); if(el) el.textContent = '📍 ' + lab;
+    };
+    m.on('click', e=>upd(e.latlng));
+    mk.on('dragend', ()=>upd(mk.getLatLng()));
+    setTimeout(()=>m.invalidateSize(), 120);
+    if(have) upd({lat:c.lat, lng:c.lon});
+  }
+  function confirmPin(){
+    if(!_pick.pos){ toast('Tap the map to choose a spot.','warn'); return; }
+    const pos = {lat:_pick.pos.lat, lon:_pick.pos.lon};
+    state.pinned = pos; state.currentPos = pos;
+    closeModal();
+    applyDashboardLocation(pos);
+    _chipLast=null; afterLocationSet();
+    toast('Exact location pinned. Pathra will use it everywhere.');
+  }
+  function manualLocSearch(){
+    clearTimeout(state.acDebounce);
+    const q = document.getElementById('manualLocInput').value;
+    state.acDebounce = setTimeout(async ()=>{
+      const items = await nominatimSearch(q);
+      renderAC(items, document.getElementById('manualLocAC'), (it)=>{
+        const pos = {lat:parseFloat(it.lat), lon:parseFloat(it.lon)};
+        state.pinned = pos; state.currentPos = pos;
+        closeModal();
+        applyDashboardLocation(pos);
+        _chipLast=null; afterLocationSet();
+        toast('Location set.');
+      });
+    }, 400);
+  }
+
+  function renderRing(ringId,valId,score){
+    const ring=document.getElementById(ringId), val=document.getElementById(valId);
+    const C = ringId.includes('Journey') ? 144.5 : 169.6;
+    if(score==null){ ring.style.strokeDashoffset=C; val.textContent='—'; return; }
+    const offset = C - (C*score/100);
+    ring.style.strokeDashoffset = offset;
+    ring.style.stroke = score>=75?'#38E1A8':score>=50?'#F5B942':'#FF5F6D';
+    val.textContent = Math.round(score);
+  }
+
+  async function loadWeatherAqi(lat,lon){
+    try{
+      const wr = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+      const wj = await wr.json();
+      const t = Math.round(wj.current_weather.temperature);
+      document.getElementById('dashWeather').textContent = t+'°C';
+      document.getElementById('dashWeatherLabel').textContent = weatherCodeLabel(wj.current_weather.weathercode);
+    }catch(e){ document.getElementById('dashWeather').textContent='—'; }
+    try{
+      const ar = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi,pm2_5`);
+      const aj = await ar.json();
+      const aqi = Math.round(aj.current.us_aqi);
+      document.getElementById('dashAqi').textContent = aqi;
+      document.getElementById('dashAqiLabel').textContent = aqiLabel(aqi);
+    }catch(e){ document.getElementById('dashAqi').textContent='—'; }
+  }
+  function weatherCodeLabel(code){
+    if(code===0) return 'Clear sky';
+    if([1,2,3].includes(code)) return 'Partly cloudy';
+    if([45,48].includes(code)) return 'Fog';
+    if([51,53,55,61,63,65,80,81,82].includes(code)) return 'Rain';
+    if([71,73,75,77,85,86].includes(code)) return 'Snow';
+    if([95,96,99].includes(code)) return 'Thunderstorm';
+    return 'Variable';
+  }
+  function aqiLabel(a){
+    if(a<=50) return 'Good';
+    if(a<=100) return 'Moderate';
+    if(a<=150) return 'Unhealthy (sensitive)';
+    if(a<=200) return 'Unhealthy';
+    return 'Very unhealthy';
+  }
+
+  async function overpassQuery(query){
+    const r = await fetch('https://overpass-api.de/api/interpreter', { method:'POST', body:'data='+encodeURIComponent(query) });
+    if(!r.ok) throw new Error('Overpass request failed');
+    return r.json();
+  }
+
+  async function loadNearby(lat,lon){
+    const box=document.getElementById('dashNearbyCard');
+    box.innerHTML = `<div class="empty-state"><div class="spinner" style="margin:0 auto 8px;"></div>Finding nearby places…</div>`;
+    try{
+      const q = `[out:json][timeout:15];(
+        node["amenity"="police"](around:1800,${lat},${lon});
+        node["amenity"="hospital"](around:1800,${lat},${lon});
+        node["leisure"="park"](around:1200,${lat},${lon});
+      );out center 8;`;
+      const j = await overpassQuery(q);
+      const groups = {police:[], hospital:[], park:[]};
+      (j.elements||[]).forEach(el=>{
+        const tag = el.tags?.amenity || el.tags?.leisure;
+        const key = tag==='police'?'police':tag==='hospital'?'hospital':'park';
+        const d = haversine(lat,lon, el.lat, el.lon);
+        groups[key].push({ name: el.tags?.name || (key==='police'?'Police station':key==='hospital'?'Hospital':'Safe zone / park'), dist:d });
+      });
+      Object.values(groups).forEach(g=>g.sort((a,b)=>a.dist-b.dist));
+      let html='';
+      const rows = [
+        {icon:'🛡️', label:'Nearby safe zones', items: groups.park.slice(0,2)},
+        {icon:'🚓', label:'Nearby police stations', items: groups.police.slice(0,2)},
+        {icon:'🏥', label:'Nearby hospitals', items: groups.hospital.slice(0,2)}
+      ];
+      rows.forEach(r=>{
+        if(!r.items.length){ html+=`<div class="list-row"><div class="list-ic">${r.icon}</div><div><div class="t">${r.label}</div><div class="s">None found within range</div></div></div>`; return; }
+        r.items.forEach((it,i)=>{
+          html += `<div class="list-row"><div class="list-ic">${r.icon}</div><div><div class="t">${i===0?r.label+' — ':''}${escapeHtml(it.name)}</div><div class="s">${(it.dist*1000).toFixed(0)} m away</div></div></div>`;
+        });
+      });
+      box.innerHTML = html || `<div class="empty-state">No nearby places found in this area.</div>`;
+    }catch(e){
+      box.innerHTML = `<div class="empty-state">Couldn't load nearby places right now. Public map data may be temporarily unavailable.</div>`;
+    }
+  }
+
+  function haversine(lat1,lon1,lat2,lon2){
+    const R=6371, dLat=(lat2-lat1)*Math.PI/180, dLon=(lon2-lon1)*Math.PI/180;
+    const a=Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+    return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  /* ---- seeded pseudo-random for deterministic-but-varied factor scores ---- */
+  function seededRand(seed){
+    let x = Math.sin(seed)*10000;
+    return x - Math.floor(x);
+  }
+  function coordSeed(lat,lon,salt){ return (lat*93731 + lon*15731 + (salt||0)) % 1000; }
+
+  function computeAreaSafetyScore(lat,lon,when){
+    const hour = when.getHours();
+    const isNight = hour>=20 || hour<5;
+    const lighting = clamp(50 + seededRand(coordSeed(lat,lon,1))*45 - (isNight?18:0), 5, 98);
+    const crowd = clamp(40 + seededRand(coordSeed(lat,lon,2))*50 - (isNight?22:0), 5, 98);
+    const cctv = clamp(35 + seededRand(coordSeed(lat,lon,3))*55, 5, 98);
+    const incidents = clamp(55 + seededRand(coordSeed(lat,lon,4))*40, 5, 98);
+    const timeFactor = isNight ? 40 : (hour>=6&&hour<19?90:65);
+    const total = lighting*0.25 + crowd*0.20 + cctv*0.15 + incidents*0.25 + timeFactor*0.15;
+    return { lighting,crowd,cctv,incidents,timeFactor,total, classification: classify(total) };
+  }
+  function classify(score){ return score>=75?'Generally Safe':score>=50?'Use Caution':'Higher Risk'; }
+  function clamp(n,min,max){ return Math.max(min,Math.min(max,n)); }
+
+  function renderRecentActivity(){
+    const list = load(LS.activity,[]).slice(0,4);
+    const box = document.getElementById('dashRecentActivity');
+    if(!list.length){ box.innerHTML='<div class="empty-state">No activity yet.</div>'; return; }
+    box.innerHTML = list.map(a=>`
+      <div class="list-row"><div class="list-ic">${activityIcon(a.type)}</div>
+      <div><div class="t">${escapeHtml(a.title)}</div><div class="s">${escapeHtml(a.details)}</div></div>
+      <div class="d">${new Date(a.time).toLocaleDateString([],{month:'short',day:'numeric'})}</div></div>`).join('');
+  }
+  function activityIcon(type){ return {route:'🧭',traffic:'🚦',green:'🌳',sos:'🆘'}[type] || '•'; }
+  function logActivity(type,title,details){
+    const list=load(LS.activity,[]);
+    list.unshift({type,title,details,time:Date.now()});
+    save(LS.activity, list.slice(0,200));
+    renderRecentActivity();
+  }
+
+  /* ================= leaflet map helpers ================= */
+  function ensureMap(id, center){
+    if(state.maps[id]){ setTimeout(()=>state.maps[id].invalidateSize(),50); return state.maps[id]; }
+    const el = document.getElementById(id); if(!el) return null;
+    if(typeof L==='undefined'){ if(!window._noMapToast){ window._noMapToast=true; toast('Map library could not load. Check your internet connection and reload.','warn'); } return null; }
+    const m = L.map(id, {zoomControl:false, attributionControl:true}).setView(center||[20.5,78.9], center?14:4);
+    addBaseMap(m);
+    state.maps[id]=m;
+    setTimeout(()=>m.invalidateSize(),80);
+    return m;
+  }
+  /* Base maps (no API key). Default = OpenStreetMap data served by OSM France: full coverage, and it works when the
+     page is opened as a local file (tile.openstreetmap.org answers 403 "Access blocked" when no Referer is sent). */
+  function addBaseMap(m){
+    const osmfr = L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
+      {maxZoom:19, subdomains:'abc', attribution:'© OpenStreetMap contributors · tiles OSM France'});
+    const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+      {maxZoom:19, maxNativeZoom:16, attribution:'Tiles © Esri'});
+    const layers = {'OpenStreetMap':osmfr, 'Street (Esri)':esri};
+    if(/^https?:$/.test(location.protocol)){      // official OSM server only accepts requests that carry a Referer
+      layers['OSM standard'] = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {maxZoom:19, attribution:'© OpenStreetMap contributors', referrerPolicy:'origin'});
+    }
+    osmfr.addTo(m);
+    L.control.layers(layers, null, {position:'topright', collapsed:true}).addTo(m);
+    if(m.attributionControl) m.attributionControl.setPrefix(false);
+  }
+  function clearMapLayers(id){
+    const m=state.maps[id]; if(!m || typeof L==='undefined') return;
+    m.eachLayer(l=>{ if(!(l instanceof L.TileLayer)) m.removeLayer(l); });
+  }
+  const pinIcon = (color)=>L.divIcon({ className:'', html:`<div style="width:14px;height:14px;border-radius:50%;background:${color};border:3px solid #0A0E14;box-shadow:0 0 0 2px ${color}55;"></div>`, iconSize:[14,14] });
+
+  /* ================= Nominatim search / autocomplete ================= */
+  async function nominatimSearch(query){
+    query=(query||'').trim();
+    if(query.length<2) return [];
+    const enc=encodeURIComponent(query);
+    const bias=state.currentPos || {lat:15.3173, lon:75.7139};   // soft bias: near you, else Karnataka
+    const get=async (url)=>{
+      const c=new AbortController(); const t=setTimeout(()=>c.abort(),9000);
+      try{ const r=await fetch(url,{signal:c.signal}); if(!r.ok) return null; return await r.json(); }
+      catch(e){ return null; } finally{ clearTimeout(t); }
+    };
+    const [ph, nm] = await Promise.all([
+      get(`https://photon.komoot.io/api/?q=${enc}&limit=10&lat=${bias.lat}&lon=${bias.lon}`),
+      get(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&countrycodes=in&q=${enc}`)
+    ]);
+    const out=[]; const seen=new Set();
+    const add=(name,lat,lon)=>{
+      if(!isFinite(lat)||!isFinite(lon)) return;
+      const key=lat.toFixed(3)+','+lon.toFixed(3);
+      if(seen.has(key)) return; seen.add(key);
+      out.push({display_name:name, lat:String(lat), lon:String(lon)});
+    };
+    if(ph && ph.features){
+      let feats=ph.features;
+      const inIndia=feats.filter(f=>(f.properties.countrycode||'').toUpperCase()==='IN');
+      if(inIndia.length) feats=inIndia;
+      feats.forEach(f=>{
+        const pr=f.properties||{};
+        const parts=[pr.name, pr.street, pr.district||pr.suburb, pr.city||pr.town||pr.village||pr.county, pr.state]
+          .filter(Boolean).filter((v,i,arr)=>arr.indexOf(v)===i);
+        add(parts.join(', '), f.geometry.coordinates[1], f.geometry.coordinates[0]);
+      });
+    }
+    if(Array.isArray(nm)){
+      nm.forEach(it=>add(it.display_name, parseFloat(it.lat), parseFloat(it.lon)));
+    }
+    return out.slice(0,10);
+  }
+  function renderAC(items, listEl, onPick){
+    if(!items.length){ listEl.classList.add('hidden'); listEl.innerHTML=''; return; }
+    listEl.innerHTML = items.map((it,i)=>`<div class="ac-item" data-i="${i}">${escapeHtml(it.display_name)}</div>`).join('');
+    listEl.classList.remove('hidden');
+    Array.from(listEl.children).forEach((child,i)=>{
+      child.onclick=()=>onPick(items[i]);
+    });
+  }
+
+  /* ================= SAFE ROUTE MODULE ================= */
+  function srTab(tab){
+    ['plan','prefs','journey'].forEach(t=>{
+      document.getElementById('srPane'+cap(t)).classList.toggle('hidden', t!==tab);
+      document.getElementById('srTab'+cap(t)).classList.toggle('active', t===tab);
+    });
+    if(tab==='prefs') renderPrefChips();
+    if(tab==='plan') ensureMap('srMap');
+  }
+  function cap(s){ return s[0].toUpperCase()+s.slice(1); }
+
+  function srSearch(which){
+    if(which==='start') state.sr.startIsGps=false;   // typing/searching overrides an earlier GPS fill
+    clearTimeout(state.acDebounce);
+    const inputId = which==='start'?'srStart':'srDest';
+    const acId = which==='start'?'srStartAC':'srDestAC';
+    const q = document.getElementById(inputId).value;
+    state.acDebounce = setTimeout(async ()=>{
+      const items = await nominatimSearch(q);
+      renderAC(items, document.getElementById(acId), (it)=>{
+        document.getElementById(inputId).value = it.display_name.split(',').slice(0,3).join(',');
+        const pos = {lat:parseFloat(it.lat), lon:parseFloat(it.lon)};
+        if(which==='start') state.sr.startPos = pos; else state.sr.destPos = pos;
+        document.getElementById(acId).classList.add('hidden');
+      });
+    }, 400);
+  }
+
+  async function useCurrentLocation(target, silent){
+    if(!silent) toast('Getting your exact location…');
+    try{
+      const pos = await getPosition({target:30, maxWait:12000});   // fresh GPS fix, waits for good accuracy
+      if(!state.pinned) state.currentPos = pos;
+      if(pos.acc && pos.acc>1000){
+        if(!silent) toast(`This device could only give an approximate location (±${(pos.acc/1000).toFixed(0)} km), so it wasn't used. Search your location instead, or open Pathra on a phone for exact GPS.`, 'warn');
+        return;
+      }
+      const label = await reverseGeocode(pos.lat,pos.lon);
+      if(target==='start'){ document.getElementById('srStart').value=label; state.sr.startPos=pos; state.sr.startIsGps=true; }
+      else if(target==='dest'){ document.getElementById('srDest').value=label; state.sr.destPos=pos; }
+      else if(target==='twStart'){ document.getElementById('twStart').value=label; state.tw.startPos=pos; state.tw.startIsGps=true; }
+      if(silent) return;
+      toast(pos.acc ? `Current location set (accurate to ±${Math.round(pos.acc)} m).` : 'Current location set.');
+    }catch(err){ if(!silent) toast(err.message||'Could not get your location.', 'warn'); }
+  }
+
+  const PREF_OPTIONS = [
+    {key:'wellLit', label:'Prefer well-lit roads', factor:'lighting'},
+    {key:'crowded', label:'Prefer crowded roads', factor:'crowd'},
+    {key:'cctv', label:'Prefer CCTV-covered areas', factor:'cctv'},
+    {key:'police', label:'Prefer roads near police stations', factor:'incidents'},
+    {key:'hospitals', label:'Prefer roads near hospitals/public places', factor:'incidents'},
+    {key:'avoidIsolated', label:'Avoid isolated roads', factor:'crowd'},
+    {key:'shortTime', label:'Prefer shorter travel time', factor:'time'}
+  ];
+  function renderPrefChips(){
+    const box = document.getElementById('srPrefChips');
+    const active = state.settings.prefs || [];
+    box.innerHTML = PREF_OPTIONS.map(p=>`<label class="chip-select ${active.includes(p.key)?'on':''}" data-key="${p.key}">
+      <input type="checkbox" ${active.includes(p.key)?'checked':''}> ${p.label}</label>`).join('');
+    Array.from(box.children).forEach(chip=>{
+      chip.onclick=(e)=>{ e.preventDefault(); chip.classList.toggle('on'); };
+    });
+  }
+  function savePrefs(){
+    const chosen = Array.from(document.querySelectorAll('#srPrefChips .chip-select.on')).map(c=>c.dataset.key);
+    state.settings.prefs = chosen; save(LS.settings, state.settings);
+    toast('Preferences saved.');
+  }
+
+  /* Routing with fallbacks: tries several public OSRM servers, each with a timeout */
+  async function fetchRoutes(s, d, mode){
+    const coords = `${s.lon},${s.lat};${d.lon},${d.lat}`;
+    const q = '?alternatives=true&overview=full&geometries=geojson';
+    const endpoints = mode==='foot'
+      ? [`https://routing.openstreetmap.de/routed-foot/route/v1/foot/${coords}${q}`,
+         `https://router.project-osrm.org/route/v1/foot/${coords}${q}`,
+         `https://router.project-osrm.org/route/v1/driving/${coords}${q}`,
+         `https://routing.openstreetmap.de/routed-car/route/v1/driving/${coords}${q}`]
+      : [`https://router.project-osrm.org/route/v1/driving/${coords}${q}`,
+         `https://routing.openstreetmap.de/routed-car/route/v1/driving/${coords}${q}`];
+    let lastErr = null;
+    for(const url of endpoints){
+      try{
+        const ctrl = new AbortController();
+        const t = setTimeout(()=>ctrl.abort(), 12000);
+        const r = await fetch(url, {signal:ctrl.signal});
+        clearTimeout(t);
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        const j = await r.json();
+        if(j.code==='Ok' && j.routes?.length) return j;
+        lastErr = new Error(j.code || 'no route');
+      }catch(e){ lastErr = e; }
+    }
+    throw lastErr || new Error('routing failed');
+  }
+
+  async function planRoute(){
+    if(state.sr.startIsGps){ try{ state.sr.startPos = await freshPosition(); }catch(e){} }
+    if(!state.sr.startPos || !state.sr.destPos){ toast('Choose a start and a destination (search or GPS).'); return; }
+    const btn = document.getElementById('srPlanBtn'); btn.innerHTML='<span class="spinner"></span> Finding route…'; btn.disabled=true;
+    try{
+      const s=state.sr.startPos, d=state.sr.destPos;
+      const j = await fetchRoutes(s, d, 'foot');
+      const now = new Date();
+      state.sr.routes = j.routes.map((rt,i)=>{
+        const mid = rt.geometry.coordinates[Math.floor(rt.geometry.coordinates.length/2)];
+        const factors = computeAreaSafetyScore(mid[1], mid[0], now);
+        return { geometry:rt.geometry, distance:rt.distance, duration:rt.duration, factors, id:i };
+      });
+      rankRoutes();
+      state.sr.selected = 0;
+      renderRouteOptions();
+      renderSelectedRoute();
+      document.getElementById('srResults').classList.remove('hidden');
+      const map = ensureMap('srMap',[s.lat,s.lon]);
+      logActivity('route','Safe Route checked', `${document.getElementById('srStart').value||'Start'} → ${document.getElementById('srDest').value||'Destination'}`);
+      maybeProactiveAlert();
+    }catch(e){
+      console.error('Route error:', e);
+      toast("Couldn't generate a route: " + (e && e.message ? e.message : 'service unavailable') + ". Check your internet connection and try again.", 'warn');
+    }
+    btn.innerHTML='Find safest route'; btn.disabled=false;
+  }
+
+  function rankRoutes(){
+    const prefs = state.settings.prefs || [];
+    state.sr.routes.forEach(rt=>{
+      let score = rt.factors.total;
+      // preference-weighted ranking bonus (display score itself stays the standard formula)
+      let bonus = 0;
+      prefs.forEach(p=>{
+        const opt = PREF_OPTIONS.find(o=>o.key===p); if(!opt) return;
+        if(opt.factor==='lighting') bonus += rt.factors.lighting*0.05;
+        if(opt.factor==='crowd') bonus += rt.factors.crowd*0.05;
+        if(opt.factor==='cctv') bonus += rt.factors.cctv*0.05;
+        if(opt.factor==='incidents') bonus += rt.factors.incidents*0.03;
+        if(opt.factor==='time') bonus += (1000/(rt.duration+1))*3;
+      });
+      rt.rank = score + bonus;
+    });
+    state.sr.routes.sort((a,b)=>b.rank-a.rank);
+  }
+
+  function renderRouteOptions(){
+    const box = document.getElementById('srRouteList');
+    box.innerHTML = state.sr.routes.map((rt,i)=>{
+      const mins = Math.round(rt.duration/60);
+      const km = (rt.distance/1000).toFixed(2);
+      const label = String.fromCharCode(65+i);
+      return `<div class="route-opt ${i===state.sr.selected?'selected':''} ${i===0?'recommended':''}" onclick="Pathra.selectRoute(${i})">
+        <div class="row-between">
+          <div style="font-weight:600;font-size:13.5px;">Route ${label} ${i===0?'<span class="pill pill-live" style="margin-left:6px;">Recommended</span>':''}</div>
+          <div class="mono" style="font-size:13px;color:${rt.factors.total>=75?'#38E1A8':rt.factors.total>=50?'#F5B942':'#FF5F6D'}">${Math.round(rt.factors.total)}%</div>
+        </div>
+        <div class="faint" style="font-size:12px;margin-top:4px;">${mins} min · ${km} km · ${classify(rt.factors.total)}</div>
+      </div>`;
+    }).join('');
+  }
+  function selectRoute(i){ state.sr.selected=i; renderRouteOptions(); renderSelectedRoute(); }
+
+  function renderSelectedRoute(){
+    const rt = state.sr.routes[state.sr.selected]; if(!rt) return;
+    const s=state.sr.startPos, d=state.sr.destPos;
+    const map = ensureMap('srMap',[s.lat,s.lon]);
+    if(map && typeof L!=='undefined'){
+      clearMapLayers('srMap');
+      const latlngs = rt.geometry.coordinates.map(c=>[c[1],c[0]]);
+      const line = L.polyline(latlngs, {color: rt.factors.total>=75?'#38E1A8':rt.factors.total>=50?'#F5B942':'#FF5F6D', weight:5, opacity:.9}).addTo(map);
+      L.marker([s.lat,s.lon], {icon:pinIcon('#38E1A8')}).addTo(map);
+      L.marker([d.lat,d.lon], {icon:pinIcon('#FF5F6D')}).addTo(map);
+      map.fitBounds(line.getBounds(), {padding:[24,24]});
+    }
+
+    document.getElementById('srOpenMaps').href = `https://www.openstreetmap.org/directions?from=${s.lat},${s.lon}&to=${d.lat},${d.lon}&route=foot`;
+
+    renderRing('srScoreRing','srScoreVal', rt.factors.total);
+    document.getElementById('srScoreClass').textContent = classify(rt.factors.total);
+    document.getElementById('srFactors').innerHTML = factorBars(rt.factors);
+    document.getElementById('srDistance').textContent = (rt.distance/1000).toFixed(2)+' km';
+    document.getElementById('srDuration').textContent = Math.round(rt.duration/60)+' min';
+    const eta = new Date(Date.now()+rt.duration*1000);
+    document.getElementById('srEta').textContent = eta.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('srWhy').textContent = whyExplanation(rt.factors, state.settings.prefs||[]);
+  }
+
+  function factorBars(f){
+    const rows = [['Lighting',f.lighting],['Crowd presence',f.crowd],['CCTV coverage',f.cctv],['Past-incident record',f.incidents],['Time of day',f.timeFactor]];
+    return rows.map(([label,val])=>`
+      <div class="factor-row"><div class="fh"><span>${label}</span><span class="mono">${Math.round(val)}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${val}%;background:${val>=70?'#38E1A8':val>=45?'#F5B942':'#FF5F6D'};"></div></div></div>`).join('');
+  }
+
+  function whyExplanation(f, prefs){
+    const notes=[];
+    notes.push(f.lighting>=65 ? 'good lighting coverage' : f.lighting>=40 ? 'moderate lighting' : 'limited lighting in parts');
+    notes.push(f.crowd>=65 ? 'solid pedestrian activity' : f.crowd>=40 ? 'moderate foot traffic' : 'low pedestrian activity in places');
+    notes.push(f.cctv>=60 ? 'reasonable CCTV coverage' : 'limited estimated CCTV coverage');
+    let text = `This route has ${notes[0]} and ${notes[2]}, with ${notes[1]}.`;
+    if(f.incidents<55) text += ' The estimated historical-incident factor is on the lower side for this area.';
+    if(prefs.length){
+      const labels = prefs.map(k=>PREF_OPTIONS.find(o=>o.key===k)?.label?.toLowerCase()).filter(Boolean);
+      if(labels.length) text += ` Your preference for ${labels.join(', ')} was factored into how this route was ranked against alternatives.`;
+    }
+    return text;
+  }
+
+  function maybeProactiveAlert(){
+    const rt = state.sr.routes[0]; if(!rt || !state.settings.notifRoute) return;
+    if(rt.factors.total < 55){
+      addNotification('Predicted safety risk ahead', 'Estimated pedestrian activity and lighting are lower than usual on part of this route.', 'warn');
+      toast('Heads up: this route has some lower-scoring sections ahead.', 'warn');
+    }
+  }
+
+  function startWalking(){
+    state.sr.journeyActive = true; state.sr.journeySeconds = 0; state.sr.journeyDrift = 0;
+    document.getElementById('srJourneyEmpty').classList.add('hidden');
+    document.getElementById('srJourneyActive').classList.remove('hidden');
+    srTab('journey');
+    const base = state.sr.routes[state.sr.selected].factors.total;
+    renderRing('srJourneyRing','srJourneyVal', base);
+    document.getElementById('srJourneyVal').textContent = Math.round(base)+'%';
+    toast('Journey started — Guardian is monitoring your route.');
+    clearInterval(state.sr.journeyTimer);
+    state.sr.journeyTimer = setInterval(()=>{
+      state.sr.journeySeconds++;
+      const m=String(Math.floor(state.sr.journeySeconds/60)).padStart(2,'0'), s=String(state.sr.journeySeconds%60).padStart(2,'0');
+      document.getElementById('srJourneyTimer').textContent = m+':'+s;
+      // adaptive safety monitoring: occasionally simulate a condition change using live-ish drift
+      if(state.sr.journeySeconds===20 && !state.sr.shiftApplied){
+        simulateSafetyShift();
+      }
+    },1000);
+  }
+
+  function simulateSafetyShift(){
+    state.sr.shiftApplied = true;
+    const current = state.sr.routes[state.sr.selected];
+    const currentScore = clamp(current.factors.total - (10+Math.round(seededRand(coordSeed(current.factors.total,7))*18)), 5, 100);
+    const altExists = state.sr.routes.length>1;
+    const alt = altExists ? state.sr.routes.find((r,i)=>i!==state.sr.selected) : null;
+    renderRing('srJourneyRing','srJourneyVal', currentScore);
+    document.getElementById('srJourneyVal').textContent = Math.round(currentScore)+'%';
+    addNotification('Conditions on your route have changed', `Estimated safety on your current route dropped to ${Math.round(currentScore)}%.`, 'warn');
+    if(currentScore<55 && alt){
+      openModal(`
+        <h3 style="margin-bottom:6px;">⚠️ AI Safety Alert</h3>
+        <p class="muted" style="font-size:13.5px;margin-bottom:14px;">Conditions on your current route have changed. A safer alternative route is available.</p>
+        <div class="row-between" style="margin-bottom:16px;">
+          <div class="card" style="flex:1;margin-right:8px;padding:12px;"><div class="faint" style="font-size:11px;">Current route</div><div class="mono" style="font-size:18px;">${Math.round(currentScore)}%</div></div>
+          <div class="card" style="flex:1;padding:12px;"><div class="faint" style="font-size:11px;">Alternative route</div><div class="mono" style="font-size:18px;color:#38E1A8;">${Math.round(alt.factors.total)}%</div></div>
+        </div>
+        <div class="row gap12">
+          <button class="btn btn-outline btn-block" onclick="Pathra.closeModal()">Continue current route</button>
+          <button class="btn btn-primary btn-block" onclick="Pathra.switchToSaferRoute(${alt.id})">Switch to safer route</button>
+        </div>`, true);
+    } else {
+      toast('Safety conditions updated along your route.', 'warn');
+    }
+  }
+  function switchToSaferRoute(routeId){
+    const idx = state.sr.routes.findIndex(r=>r.id===routeId);
+    if(idx>-1){ state.sr.selected=idx; renderSelectedRoute(); toast('Switched to the safer route.'); }
+    closeModal();
+  }
+  function endJourney(){
+    clearInterval(state.sr.journeyTimer);
+    state.sr.journeyActive=false; state.sr.shiftApplied=false;
+    document.getElementById('srJourneyActive').classList.add('hidden');
+    document.getElementById('srJourneyEmpty').classList.remove('hidden');
+    logActivity('route','Journey completed', 'Arrived safely — journey monitoring ended.');
+    toast('Journey ended. Glad you made it safely.');
+  }
+
+  /* ================= GREEN TRAIL MODULE ================= */
+  async function gtUseGps(silent){
+    try{
+      const pos = await freshPosition();
+      state.gt.focusPos = pos; state.gt.focusIsGps = true;
+      const label = await reverseGeocode(pos.lat,pos.lon);
+      state.gt.gpsLabel = label;
+      document.getElementById('gtSearch').value = label;
+      if(silent!==true) toast('Location set.');
+    }catch(e){ if(silent!==true) toast(e.message,'warn'); }
+  }
+  async function findGreenSpaces(){
+    let pos = state.gt.focusPos;
+    const typedNow = document.getElementById('gtSearch').value.trim();
+    if(state.gt.focusIsGps){
+      if(!typedNow || typedNow===state.gt.gpsLabel){ try{ pos = await freshPosition(); }catch(e){} }   // re-read GPS so results follow you
+      else { pos = null; state.gt.focusIsGps = false; state.gt.focusPos = null; }                        // user typed somewhere else
+    }
+    if(!pos){
+      const q = document.getElementById('gtSearch').value;
+      if(q && q.length>2){
+        const results = await nominatimSearch(q);
+        if(results.length){ pos = {lat:parseFloat(results[0].lat), lon:parseFloat(results[0].lon)}; }
+      }
+    }
+    if(!pos){ try{ pos = await freshPosition(); }catch(e){ toast('Search a location or allow GPS.','warn'); return; } }
+    state.gt.focusPos = pos;
+    const btn=document.getElementById('gtFindBtn'); btn.innerHTML='<span class="spinner"></span> Searching…'; btn.disabled=true;
+    const listBox = document.getElementById('gtList');
+    try{
+      const q = `[out:json][timeout:20];(
+        node["leisure"~"^(park|garden|nature_reserve|dog_park)$"](around:2500,${pos.lat},${pos.lon});
+        way["leisure"~"^(park|garden|nature_reserve|dog_park)$"](around:2500,${pos.lat},${pos.lon});
+        node["landuse"~"^(forest|grass|meadow)$"](around:2500,${pos.lat},${pos.lon});
+        way["landuse"~"^(forest|grass|meadow)$"](around:2500,${pos.lat},${pos.lon});
+        node["natural"~"^(wood|grassland)$"](around:2500,${pos.lat},${pos.lon});
+      );out center 20;`;
+      const j = await overpassQuery(q);
+      const spots = (j.elements||[]).map(el=>{
+        const lat = el.lat||el.center?.lat, lon = el.lon||el.center?.lon;
+        if(!lat) return null;
+        const tag = el.tags?.leisure || el.tags?.landuse || el.tags?.natural;
+        return { name: el.tags?.name || typeLabel(tag), type:tag, lat, lon, dist: haversine(pos.lat,pos.lon,lat,lon), dog: el.tags?.leisure==='dog_park' };
+      }).filter(Boolean).sort((a,b)=>a.dist-b.dist).slice(0,10);
+
+      const map = ensureMap('gtMap',[pos.lat,pos.lon]); clearMapLayers('gtMap');
+      L.marker([pos.lat,pos.lon],{icon:pinIcon('#5FC7EE')}).addTo(map);
+      spots.forEach(s=>L.marker([s.lat,s.lon],{icon:pinIcon('#38E1A8')}).addTo(map).bindPopup(escapeHtml(s.name)));
+
+      if(!spots.length){ listBox.innerHTML='<div class="empty-state">No green spaces found nearby. Try a different location.</div>'; }
+      else listBox.innerHTML = spots.map(s=>`
+        <div class="list-row"><div class="list-ic">🌳</div>
+          <div><div class="t">${escapeHtml(s.name)}</div>
+          <div class="s">${typeLabel(s.type)} · Walk ✓ ${s.dist<1?'· Run ✓':''} ${s.dog?'· Dog-friendly':''}</div></div>
+          <div class="d">${s.dist<1?(s.dist*1000).toFixed(0)+' m':s.dist.toFixed(1)+' km'}</div></div>`).join('');
+      logActivity('green','Green Trail search', `${spots.length} green space(s) found nearby`);
+    }catch(e){
+      listBox.innerHTML = '<div class="empty-state">Could not load green spaces right now.</div>';
+    }
+    btn.innerHTML='Find nearby green spaces'; btn.disabled=false;
+  }
+  function typeLabel(t){ return {park:'Park',garden:'Garden',nature_reserve:'Nature reserve',dog_park:'Dog park',forest:'Forest',grass:'Grass area',meadow:'Meadow',wood:'Woodland',grassland:'Grassland'}[t] || 'Green space'; }
+
+  function toggleWalkTracking(){
+    if(state.gt.tracking) stopWalkTracking(); else startWalkTracking();
+  }
+  function startWalkTracking(){
+    if(!navigator.geolocation){ toast('Geolocation is not supported on this device.','warn'); return; }
+    state.gt.tracking=true; state.gt.seconds=0; state.gt.distance=0; state.gt.lastPos=null;
+    document.getElementById('gtTrackStatus').textContent='Tracking…';
+    document.getElementById('gtTrackBtn').textContent='Stop';
+    state.gt.timerId = setInterval(()=>{
+      state.gt.seconds++;
+      const m=String(Math.floor(state.gt.seconds/60)).padStart(2,'0'), s=String(state.gt.seconds%60).padStart(2,'0');
+      document.getElementById('gtDuration').textContent = m+':'+s;
+      const paceMinPerKm = state.gt.distance>0 ? (state.gt.seconds/60)/state.gt.distance : 0;
+      document.getElementById('gtPace').textContent = paceMinPerKm>0 ? paceMinPerKm.toFixed(1)+' min/km' : '—';
+    },1000);
+    state.gt.watchId = navigator.geolocation.watchPosition(pos=>{
+      const p={lat:pos.coords.latitude, lon:pos.coords.longitude};
+      if(state.gt.lastPos){ state.gt.distance += haversine(state.gt.lastPos.lat,state.gt.lastPos.lon,p.lat,p.lon); }
+      state.gt.lastPos = p;
+      document.getElementById('gtDistance').textContent = state.gt.distance.toFixed(2)+' km';
+    }, ()=>{}, {enableHighAccuracy:true});
+    toast('Walk tracking started.');
+  }
+  function stopWalkTracking(silent){
+    if(!state.gt.tracking) return;
+    state.gt.tracking=false;
+    clearInterval(state.gt.timerId);
+    if(state.gt.watchId!=null) navigator.geolocation.clearWatch(state.gt.watchId);
+    document.getElementById('gtTrackStatus') && (document.getElementById('gtTrackStatus').textContent='Not tracking');
+    document.getElementById('gtTrackBtn') && (document.getElementById('gtTrackBtn').textContent='Start');
+    if(!silent && state.gt.distance>0.01){
+      logActivity('green','Walk tracked', `${state.gt.distance.toFixed(2)} km in ${Math.floor(state.gt.seconds/60)} min`);
+      toast('Walk saved to Activity History.');
+    }
+  }
+
+  /* ================= TRAFFIC WATCH MODULE ================= */
+  async function planTraffic(){
+    if(state.tw.startIsGps){ try{ state.tw.startPos = await freshPosition(); }catch(e){} }
+    const startVal = document.getElementById('twStart').value, destVal = document.getElementById('twDest').value;
+    if(!state.tw.startPos){
+      if(!startVal){ toast('Enter or GPS a start location.'); return; }
+      const res = await nominatimSearch(startVal); if(res.length) state.tw.startPos={lat:parseFloat(res[0].lat),lon:parseFloat(res[0].lon)};
+    }
+    if(!destVal){ toast('Enter a destination.'); return; }
+    const res2 = await nominatimSearch(destVal); if(!res2.length){ toast('Destination not found.'); return; }
+    state.tw.destPos = {lat:parseFloat(res2[0].lat), lon:parseFloat(res2[0].lon)};
+    if(!state.tw.startPos){ toast('Could not resolve start location.'); return; }
+
+    const btn=document.getElementById('twBtn'); btn.innerHTML='<span class="spinner"></span> Checking…'; btn.disabled=true;
+    try{
+      const s=state.tw.startPos, d=state.tw.destPos;
+      const j = await fetchRoutes(s, d, 'driving');
+      const hour = new Date().getHours();
+      const rushMult = (hour>=8&&hour<=10)||(hour>=17&&hour<=20) ? 1.35 : (hour>=11&&hour<=16) ? 1.1 : 0.95;
+      const main = j.routes[0];
+      const etaMin = Math.round(main.duration/60*rushMult);
+      document.getElementById('twEta').textContent = etaMin+' min';
+      document.getElementById('twDistance').textContent = (main.distance/1000).toFixed(1)+' km';
+      const congestLevel = rushMult>=1.3?'Heavy':rushMult>=1.05?'Moderate':'Light';
+      const pill = document.getElementById('twCongestionPill');
+      pill.textContent = congestLevel+' (Estimated)';
+      pill.className = 'pill ' + (congestLevel==='Heavy'?'pill-est':'pill-live');
+
+      const map = ensureMap('twMap',[s.lat,s.lon]); clearMapLayers('twMap');
+      const latlngs = main.geometry.coordinates.map(c=>[c[1],c[0]]);
+      const line = L.polyline(latlngs,{color:'#F5B942',weight:5}).addTo(map);
+      L.marker([s.lat,s.lon],{icon:pinIcon('#38E1A8')}).addTo(map);
+      L.marker([d.lat,d.lon],{icon:pinIcon('#FF5F6D')}).addTo(map);
+      map.fitBounds(line.getBounds(),{padding:[24,24]});
+
+      const alts = j.routes.slice(1);
+      document.getElementById('twAlts').innerHTML = alts.length ? alts.map((rt,i)=>`
+        <div class="route-opt"><div class="row-between"><div style="font-weight:600;font-size:13.5px;">Alternate ${i+1}</div>
+        <div class="mono" style="font-size:13px;">${Math.round(rt.duration/60*rushMult)} min</div></div>
+        <div class="faint" style="font-size:12px;margin-top:4px;">${(rt.distance/1000).toFixed(1)} km</div></div>`).join('')
+        : '<div class="empty-state">No alternate routes found.</div>';
+
+      document.getElementById('twResults').classList.remove('hidden');
+      logActivity('traffic','Traffic Watch checked', `${startVal||'Start'} → ${destVal} · ${etaMin} min`);
+    }catch(e){
+      toast("Couldn't fetch traffic data right now.",'warn');
+    }
+    btn.innerHTML='Check traffic &amp; ETA'; btn.disabled=false;
+  }
+
+  /* ================= GUARDIAN AI ================= */
+  function renderChatHistory(){
+    const hist = load(LS.chat,[]);
+    const log = document.getElementById('chatLog');
+    hist.forEach(m=>appendMsg(m.role, m.text, false));
+  }
+  function appendMsg(role,text,persist){
+    const log=document.getElementById('chatLog');
+    const div=document.createElement('div'); div.className='msg '+(role==='user'?'user':'ai'); div.textContent=text;
+    log.appendChild(div); log.scrollTop=log.scrollHeight;
+    if(persist!==false){ const hist=load(LS.chat,[]); hist.push({role,text}); save(LS.chat, hist.slice(-60)); }
+  }
+  async function sendChat(){
+    const input=document.getElementById('chatInput'); const text=input.value.trim();
+    if(!text) return; input.value='';
+    appendMsg('user', text);
+    const typingEl=document.createElement('div'); typingEl.className='msg ai'; typingEl.innerHTML='<span class="spinner"></span>';
+    document.getElementById('chatLog').appendChild(typingEl); document.getElementById('chatLog').scrollTop=9e9;
+    try{
+      const hist = load(LS.chat,[]).slice(-10).map(m=>({role:m.role==='user'?'user':'assistant', content:m.text}));
+      const sys = `You are Guardian AI, the explainable-AI safety assistant inside the Pathra women's-safety and routing app. Be warm, concise, and practical. Explain safety scores and routing predictions in plain language when asked. You can discuss general personal-safety guidance. You are not a substitute for emergency services — if someone describes an active emergency, tell them clearly to use Pathra's SOS button or call their local emergency number immediately. Never claim access to real police, CCTV or government data — Pathra's scores are heuristic estimates from public map/weather data.`;
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1000, system:sys, messages: hist })
+      });
+      const data = await resp.json();
+      typingEl.remove();
+      const textOut = (data.content||[]).map(c=>c.text||'').join('\n').trim() || "I couldn't quite process that — could you rephrase?";
+      appendMsg('assistant', textOut);
+    }catch(e){
+      typingEl.remove();
+      appendMsg('assistant', "I'm having trouble connecting right now. If this is an emergency, please use the SOS button or call your local emergency number.");
+    }
+  }
+
+  /* ================= BREATHING MAP ================= */
+  async function loadBreathingMap(){
+    try{
+      const pos = await freshPosition();
+      const map = ensureMap('bmMap',[pos.lat,pos.lon]); clearMapLayers('bmMap');
+      const ar = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${pos.lat}&longitude=${pos.lon}&current=us_aqi,pm2_5,pm10`);
+      const aj = await ar.json();
+      const aqi = Math.round(aj.current.us_aqi), pm25 = aj.current.pm2_5?.toFixed(1) || '—';
+      document.getElementById('bmAqi').textContent=aqi; document.getElementById('bmAqiCat').textContent=aqiLabel(aqi);
+      document.getElementById('bmPm25').textContent=pm25;
+      const color = aqi<=50?'#38E1A8':aqi<=100?'#F5B942':'#FF5F6D';
+      L.circle([pos.lat,pos.lon], {radius:700, color, fillColor:color, fillOpacity:.18, weight:2}).addTo(map);
+      L.marker([pos.lat,pos.lon],{icon:pinIcon(color)}).addTo(map);
+
+      if(state.sr.routes.length){
+        const rt = state.sr.routes[state.sr.selected];
+        document.getElementById('bmPrediction').textContent = aqi>100
+          ? `Along your last planned route, air quality is predicted to remain elevated (${aqiLabel(aqi)}). Consider a mask or an alternate time of travel.`
+          : `Predicted exposure along your last planned route stays within a ${aqiLabel(aqi).toLowerCase()} range.`;
+      }
+    }catch(e){
+      toast('Location is needed for the Breathing Map.','warn');
+    }
+  }
+
+  /* ================= SOS / EMERGENCY ================= */
+  let sosCountdownTimer=null, sosCountdownVal=0;
+  function openSOS(){
+    const c = state.user?.contacts?.primary;
+    openModal(`
+      <h3 style="margin-bottom:4px;color:var(--coral);">SOS Shield</h3>
+      <p class="muted" style="font-size:13px;margin-bottom:18px;">Choose how you'd like to get help. Every option works even if you can only manage one tap.</p>
+      <div class="row gap12" style="margin-bottom:10px;">
+        <button class="btn btn-danger btn-block" onclick="Pathra.fireSOS()">🆘 Trigger SOS</button>
+      </div>
+      <div class="row gap12" style="margin-bottom:10px;">
+        <a class="btn btn-outline btn-block" href="tel:${state.settings.emergencyNumber||'112'}">📞 Call Police (${state.settings.emergencyNumber||'112'})</a>
+      </div>
+      ${c?.phone ? `<div class="row gap12" style="margin-bottom:10px;">
+        <a class="btn btn-outline btn-block" href="tel:${c.phone}">📞 Call ${escapeHtml(c.name||'primary contact')}</a>
+      </div>
+      <div class="row gap12" style="margin-bottom:10px;">
+        <a class="btn btn-ghost btn-block" href="sms:${c.phone}?body=${encodeURIComponent('I need help. This is my last known location: '+ (state.currentPos ? `https://www.openstreetmap.org/?mlat=${state.currentPos.lat}&mlon=${state.currentPos.lon}#map=17` : 'location unavailable'))}">💬 Send SOS SMS</a>
+      </div>` : `<p class="faint" style="font-size:12px;">Add an emergency contact in Profile to unlock call/SMS shortcuts.</p>`}
+      <button class="btn btn-ghost btn-block" onclick="Pathra.closeModal()" style="margin-top:6px;">Close</button>
+    `, true);
+  }
+  function startSOSCountdown(){
+    sosCountdownVal = 5;
+    openModal(`
+      <div style="text-align:center;">
+        <div style="font-family:var(--font-mono);font-size:44px;color:var(--coral);margin:10px 0;" id="sosCountdownNum">5</div>
+        <p class="muted" style="font-size:13.5px;margin-bottom:18px;">Sending SOS alert to your emergency contacts and logging your location…</p>
+        <button class="btn btn-outline btn-block" onclick="Pathra.cancelSOSCountdown()">Cancel</button>
+      </div>`, true);
+    clearInterval(sosCountdownTimer);
+    sosCountdownTimer = setInterval(()=>{
+      sosCountdownVal--;
+      const el=document.getElementById('sosCountdownNum'); if(el) el.textContent=sosCountdownVal;
+      if(sosCountdownVal<=0){ clearInterval(sosCountdownTimer); fireSOS(); }
+    },1000);
+  }
+  function cancelSOSCountdown(){ clearInterval(sosCountdownTimer); closeModal(); toast('SOS cancelled.'); }
+  async function fireSOS(){
+    const cs = state.user?.contacts||{};
+    const phones=[cs.primary?.phone,cs.secondary?.phone].filter(Boolean);
+    logActivity('sos','SOS triggered', phones.length?`Sent to ${phones.length} contact(s)`:'No contacts saved');
+    addNotification('SOS triggered','SOS sent to your emergency contacts with your live location.','alert');
+    if(window.PathraNative){            // Android app: silent SMS + live location, works in background
+      syncNative(); PathraNative.triggerSos();
+      openModal(`<h3 style="color:var(--coral);margin-bottom:8px;">🆘 SOS sent</h3>
+        <p class="muted" style="font-size:13.5px;margin-bottom:16px;">SMS with your location was sent to your emergency contacts. Updates are sent automatically while you move.</p>
+        <div class="row gap12" style="margin-bottom:10px;"><a class="btn btn-danger btn-block" href="tel:${state.settings.emergencyNumber||'112'}">📞 Call ${state.settings.emergencyNumber||'112'}</a></div>
+        <button class="btn btn-outline btn-block" onclick="PathraNative.stopSos();Pathra.closeModal()">Stop sharing (I'm safe)</button>`, true);
+      return;
+    }
+    // Browser fallback: browsers cannot send SMS silently, so open the composer pre-filled
+    if(!state.currentPos){ try{ await Promise.race([freshPosition(), new Promise(r=>setTimeout(r,1500))]); }catch(e){} }
+    const p=state.currentPos;
+    const body='SOS! I need help. My location: '+(p?`https://maps.google.com/?q=${p.lat},${p.lon}`:'unavailable');
+    openModal(`<h3 style="color:var(--coral);margin-bottom:8px;">🆘 SOS ready</h3>
+      <p class="muted" style="font-size:13.5px;margin-bottom:16px;">Tap Send SMS (browsers can't send texts on their own). Install the Android app for fully automatic SOS.</p>
+      ${phones.length?`<a class="btn btn-danger btn-block" style="margin-bottom:10px;" href="sms:${phones.join(',')}?body=${encodeURIComponent(body)}">💬 Send SMS to contacts</a>`:''}
+      <a class="btn btn-outline btn-block" style="margin-bottom:10px;" href="tel:${state.settings.emergencyNumber||'112'}">📞 Call ${state.settings.emergencyNumber||'112'}</a>
+      <button class="btn btn-ghost btn-block" onclick="Pathra.closeModal()">Done</button>`, true);
+    if(phones.length) location.href='sms:'+phones.join(',')+'?body='+encodeURIComponent(body);
+  }
+  function syncNative(){
+    if(!window.PathraNative||!state.user) return;
+    const c=state.user.contacts||{};
+    PathraNative.saveConfig(JSON.stringify({
+      name:state.user.name||state.user.fullName||state.user.firstName||'A Pathra user',
+      phones:[c.primary?.phone,c.secondary?.phone].filter(Boolean),
+      shake:state.settings.shake!==false, power:state.settings.quickAccess!==false}));
+    PathraNative.startService();
+  }
+
+  function setupShakeDetection(){
+    if(!state.settings.shake) return;
+    if(typeof DeviceMotionEvent === 'undefined') return;
+    const attach = ()=>{
+      window.addEventListener('devicemotion', onDeviceMotion);
+    };
+    if(typeof DeviceMotionEvent.requestPermission === 'function'){
+      // iOS requires a user gesture; skip auto-attach, offer via a toast/tap once
+      // Attach lazily on first tap anywhere to keep it low-friction
+      document.body.addEventListener('click', function once(){
+        DeviceMotionEvent.requestPermission().then(res=>{ if(res==='granted') attach(); }).catch(()=>{});
+        document.body.removeEventListener('click', once);
+      }, {once:true});
+    } else {
+      attach();
+    }
+  }
+  function onDeviceMotion(e){
+    if(!state.settings.shake) return;
+    if(Date.now() < state.shakeCooldownUntil) return;
+    const a = e.accelerationIncludingGravity || e.acceleration; if(!a) return;
+    const mag = Math.sqrt((a.x||0)**2 + (a.y||0)**2 + (a.z||0)**2);
+    const THRESHOLD = 26;
+    if(mag > THRESHOLD){
+      const now = Date.now();
+      state.shakeBuf = state.shakeBuf.filter(t=>now-t<2000);
+      state.shakeBuf.push(now);
+      // Require 3 distinct strong shakes within 2s — reduces accidental single-bump triggers
+      if(state.shakeBuf.length>=3){
+        state.shakeBuf=[]; state.shakeCooldownUntil = now+15000;
+        promptShakeConfirm();
+      }
+    }
+  }
+  function promptShakeConfirm(){
+    let secondsLeft=6;
+    openModal(`
+      <div style="text-align:center;">
+        <div style="font-size:15px;font-weight:600;margin-bottom:6px;">Shake detected</div>
+        <p class="muted" style="font-size:13px;margin-bottom:14px;">If this wasn't intentional, tap Cancel. Otherwise SOS sends automatically in <span id="shakeCountdown">${secondsLeft}</span>s.</p>
+        <div class="row gap12"><button class="btn btn-outline btn-block" onclick="Pathra.cancelShakePrompt()">Cancel</button>
+        <button class="btn btn-danger btn-block" onclick="Pathra.confirmShakeSOS()">Send now</button></div>
+      </div>`, true);
+    clearInterval(sosCountdownTimer);
+    sosCountdownTimer = setInterval(()=>{
+      secondsLeft--;
+      const el=document.getElementById('shakeCountdown'); if(el) el.textContent=secondsLeft;
+      if(secondsLeft<=0){ clearInterval(sosCountdownTimer); confirmShakeSOS(); }
+    },1000);
+  }
+  function cancelShakePrompt(){ clearInterval(sosCountdownTimer); closeModal(); toast('Shake alert cancelled.'); }
+  function confirmShakeSOS(){ clearInterval(sosCountdownTimer); fireSOS(); }
+
+  /* ================= PROFILE ================= */
+  function renderProfile(){
+    const u = state.user; if(!u) return;
+    const av = document.getElementById('profAvatar');
+    if(u.photo){ av.style.backgroundImage=`url(${u.photo})`; av.style.backgroundSize='cover'; av.style.backgroundPosition='center'; av.textContent=''; }
+    else { av.style.backgroundImage=''; av.textContent = initials(u.name); }
+    document.getElementById('profName').textContent = u.name;
+    document.getElementById('profEmail').textContent = u.email;
+    document.getElementById('profCity').textContent = u.city || '';
+
+    document.getElementById('profPersonal').innerHTML = [
+      ['Phone', u.phone], ['Date of birth', u.dob||'—'], ['Gender', u.gender||'—'], ['Address', u.address||'—']
+    ].map(([l,val])=>`<div class="row-between" style="padding:8px 0;border-bottom:1px solid var(--stroke-soft);"><span class="faint" style="font-size:12.5px;">${l}</span><span style="font-size:13.5px;">${escapeHtml(String(val))}</span></div>`).join('');
+
+    const c = u.contacts||{};
+    document.getElementById('profContacts').innerHTML = `
+      <div style="font-weight:600;font-size:13px;margin-bottom:6px;">Primary</div>
+      <div class="faint" style="font-size:12.5px;margin-bottom:12px;">${escapeHtml(c.primary?.name||'—')} · ${escapeHtml(c.primary?.rel||'—')} · ${escapeHtml(c.primary?.phone||'—')}</div>
+      <div style="font-weight:600;font-size:13px;margin-bottom:6px;">Secondary</div>
+      <div class="faint" style="font-size:12.5px;">${escapeHtml(c.secondary?.name||'—')} · ${escapeHtml(c.secondary?.rel||'—')} · ${escapeHtml(c.secondary?.phone||'—')}</div>
+      ${u.doctor?`<div class="divider"></div><div style="font-weight:600;font-size:13px;margin-bottom:6px;">Doctor / medical contact</div><div class="faint" style="font-size:12.5px;">${escapeHtml(u.doctor)}</div>`:''}`;
+
+    document.getElementById('profPrefs').innerHTML = `
+      <div class="row-between" style="padding:6px 0;"><span class="faint" style="font-size:12.5px;">Country</span><span style="font-size:13.5px;">${escapeHtml(u.country||'—')}</span></div>
+      <div class="row-between" style="padding:6px 0;"><span class="faint" style="font-size:12.5px;">Emergency number</span><span class="mono" style="font-size:13.5px;">${escapeHtml(u.emergencyNumber||'112')}</span></div>
+      <p class="faint" style="font-size:11.5px;margin-top:6px;">Emergency calls use your phone's own dialer.</p>`;
+
+    if(u.notes){
+      document.getElementById('profNotesTitle').classList.remove('hidden');
+      const nc = document.getElementById('profNotesCard'); nc.classList.remove('hidden');
+      nc.innerHTML = `<p style="font-size:13px;line-height:1.5;">${escapeHtml(u.notes)}</p><button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="Pathra.openEditProfile()">View / Edit</button>`;
+    } else {
+      document.getElementById('profNotesTitle').classList.add('hidden');
+      document.getElementById('profNotesCard').classList.add('hidden');
+    }
+  }
+
+  function openEditProfile(){
+    const u = state.user;
+    openModal(`
+      <h3 style="margin-bottom:14px;">Edit profile</h3>
+      <div class="field"><label>Full name</label><input id="editName" value="${escapeHtml(u.name)}"></div>
+      <div class="field"><label>Phone number</label><input id="editPhone" value="${escapeHtml(u.phone)}"></div>
+      <div class="row gap12">
+        <div class="field" style="flex:1;"><label>Date of birth</label><input id="editDob" type="date" value="${u.dob||''}"></div>
+        <div class="field" style="flex:1;"><label>Gender</label>
+          <select id="editGender">${['Female','Male','Non-binary','Prefer not to say'].map(g=>`<option ${u.gender===g?'selected':''}>${g}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div class="field"><label>City</label><input id="editCity" value="${escapeHtml(u.city||'')}"></div>
+      <div class="field"><label>Address</label><input id="editAddress" value="${escapeHtml(u.address||'')}"></div>
+      <div class="field"><label>Emergency notes</label><textarea id="editNotes" rows="3">${escapeHtml(u.notes||'')}</textarea></div>
+      <div class="row gap12" style="margin-top:8px;">
+        <button class="btn btn-outline btn-block" onclick="Pathra.closeModal()">Cancel</button>
+        <button class="btn btn-primary btn-block" onclick="Pathra.saveProfile()">Save changes</button>
+      </div>`);
+  }
+  function saveProfile(){ setTimeout(syncNative,300);
+    const u = state.user;
+    u.name=v('editName'); u.phone=v('editPhone'); u.dob=v('editDob'); u.gender=document.getElementById('editGender').value;
+    u.city=v('editCity'); u.address=v('editAddress'); u.notes=v('editNotes');
+    save(LS.user,u); state.user=u; closeModal(); renderProfile();
+    toast('Profile updated.');
+  }
+  function openChangePassword(){
+    openModal(`
+      <h3 style="margin-bottom:14px;">Change password</h3>
+      <div class="field"><label>Current password</label><input id="cpOld" type="password"></div>
+      <div class="field"><label>New password</label><input id="cpNew" type="password"></div>
+      <div class="field"><label>Confirm new password</label><input id="cpNew2" type="password"></div>
+      <div class="row gap12" style="margin-top:8px;">
+        <button class="btn btn-outline btn-block" onclick="Pathra.closeModal()">Cancel</button>
+        <button class="btn btn-primary btn-block" onclick="Pathra.changePassword()">Update password</button>
+      </div>`);
+  }
+  async function changePassword(){
+    const oldPw=v('cpOld'), newPw=v('cpNew'), newPw2=v('cpNew2');
+    const oldHash = await sha256(oldPw);
+    if(oldHash !== state.user.passwordHash){ toast('Current password is incorrect.'); return; }
+    if(newPw.length<6){ toast('New password must be at least 6 characters.'); return; }
+    if(newPw!==newPw2){ toast('New passwords do not match.'); return; }
+    state.user.passwordHash = await sha256(newPw);
+    save(LS.user, state.user); closeModal();
+    toast('Password updated.');
+  }
+
+  /* ================= SETTINGS ================= */
+  function renderSettings(){
+    document.querySelectorAll('#view-settings .switch[data-setting]').forEach(sw=>{
+      sw.classList.toggle('on', !!state.settings[sw.dataset.setting]);
+    });
+    document.getElementById('settingsEmNumber').value = state.settings.emergencyNumber || '112';
+  }
+  function saveEmNumber(val){ state.settings.emergencyNumber = val.trim() || '112'; save(LS.settings, state.settings); }
+
+  /* ================= ACTIVITY HISTORY ================= */
+  function filterActivity(type, el){
+    state.activityFilter = type;
+    document.querySelectorAll('#view-activity .tab').forEach(t=>t.classList.remove('active'));
+    el.classList.add('active');
+    renderActivity();
+  }
+  function renderActivity(){
+    let list = load(LS.activity,[]);
+    const filterMap = {route:'route', traffic:'traffic', green:'green', sos:'sos'};
+    if(state.activityFilter!=='all') list = list.filter(a=>a.type===filterMap[state.activityFilter]);
+    const box = document.getElementById('activityList');
+    if(!list.length){ box.innerHTML='<div class="empty-state">No activity in this category yet.</div>'; return; }
+    box.innerHTML = list.map(a=>`
+      <div class="list-row"><div class="list-ic">${activityIcon(a.type)}</div>
+      <div><div class="t">${escapeHtml(a.title)}</div><div class="s">${escapeHtml(a.details)}</div></div>
+      <div class="d">${new Date(a.time).toLocaleDateString([],{month:'short',day:'numeric'})}<br>${new Date(a.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div></div>`).join('');
+  }
+
+  /* ================= INIT ================= */
+  function init(){
+    const loggedIn = load(LS.session,false);
+    const user = load(LS.user,null);
+    if(loggedIn && user){
+      state.user = user;
+      state.settings = load(LS.settings, DEFAULT_SETTINGS);
+      enterApp();
+    } else {
+      goTo('splash');
+    }
+    // close autocomplete when clicking elsewhere
+    document.addEventListener('click', (e)=>{
+      if(!e.target.closest('.loc-inputs')){
+        document.querySelectorAll('.autocomplete').forEach(a=>a.classList.add('hidden'));
+      }
+    });
+  }
+  document.addEventListener('DOMContentLoaded', init);
+
+  return {
+    state, LS, save, load,
+    goTo, goApp, togglePw, forgotPassword,
+    openDrawer, closeDrawer, openNotifPanel, addNotification,
+    openModal, closeModal, toggleSwitch,
+    previewPhoto, onCountryChange, regNext, regBack,
+    login, confirmLogout, doLogout,
+    srTab, srSearch, useCurrentLocation, planRoute, selectRoute, savePrefs, startWalking, endJourney, switchToSaferRoute,
+    gtUseGps, findGreenSpaces, toggleWalkTracking,
+    planTraffic,
+    sendChat,
+    loadBreathingMap,
+    openSOS, startSOSCountdown, cancelSOSCountdown, fireSOS, cancelShakePrompt, confirmShakeSOS,
+    openEditProfile, saveProfile, openChangePassword, changePassword,
+    saveEmNumber,
+    filterActivity,
+    retryLocation, openManualLocation, manualLocSearch, confirmPin, showLocationFixHelp, refreshLocation
+  };
+})();
+
+</script>
+</body>
+</html>
